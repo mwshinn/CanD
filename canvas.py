@@ -9,6 +9,7 @@ import atexit
 import os
 
 class Metric(pns.Type):
+    """A Paranoid Scientist Type for Points and Vectors."""
     def test(self, v):
         assert isinstance(v, Point) or isinstance(v, Vector)
     def generate(self):
@@ -26,6 +27,21 @@ class Metric(pns.Type):
 
 @pns.paranoidclass
 class Point:
+    """A point on the canvas in an arbitrary coordinate system.
+
+    A point represents a specific location on the canvas.  It
+    represents an x and y coordinate in a specific coordinate system,
+    given by `x`, `y`, and `coordinate`, respectively.  Coordinate
+    systems are specified as strings, and are interpreted according to
+    a Canvas object.
+
+    Points and vectors can be added or subtracted to produce another
+    point.  Points cannot be multiplied or divided by scalars.  Points
+    cannot be added to each other, but they can be subtracted to
+    produce the vector connecting the two points.
+
+    """
+
     @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String)
     def __init__(self, x, y, coordinate="default"):
         self.x = x
@@ -64,6 +80,21 @@ class Point:
 
 @pns.paranoidclass
 class Vector:
+    """A vector in an arbitrary coordinate system.
+
+    A Vector represents a difference in location on the canvas.  It
+    represents a width and a height in a specific coordinate system,
+    given by `x`, `y`, and `coordinate`, respectively.  Coordinate
+    systems are specified as strings, and are interpreted according to
+    a Canvas object.
+
+    Vectors can be added or subtracted to other vectors or points.
+    They can also be multiplied and divided by scalars.
+
+    A Vector which only has an x component is automatically cast to a
+    "Width" object, and with only a y component is a "Height" object.
+
+    """
     def __new__(cls, x, y, coordinate="default"):
         if y == 0 and cls == Vector and x != 0:
             return Width(x, coordinate)
@@ -106,8 +137,10 @@ class Vector:
     def __truediv__(self, other):
         return Vector(self.x / other, self.y / other, self.coordinate)
     def width(self):
+        """Returns a Width object representing the x component of the Vector."""
         return Width(self.x, self.coordinate)
     def height(self):
+        """Returns a Height object representing the y component of the Vector."""
         return Height(self.y, self.coordinate)
     def __eq__(self, other):
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
@@ -117,6 +150,7 @@ class Vector:
         yield Width(.5)
 
 class Width(Vector):
+    """A Vector with only an x component."""
     def __new__(cls, x, coordinate="default"):
         obj = object.__new__(cls)
         obj.x = x
@@ -127,6 +161,7 @@ class Width(Vector):
         return f'{self.__class__.__name__}({self.x}, "{self.coordinate}")'
 
 class Height(Vector):
+    """A Vector with only a y component."""
     def __new__(cls, y, coordinate="default"):
         obj = object.__new__(cls)
         obj.x = 0
@@ -157,6 +192,15 @@ class MetaBinop:
 
 @pns.paranoidclass
 class BinopPoint(MetaBinop,Point):
+    """A Point which is a composite of points and vectors in different bases.
+
+    Each Vector and Point's coordinate system depends on the Canvas
+    object, and thus, we cannot immediately compute sums or
+    differences of Vector or Point objects.  Instead, this object
+    represents a node in a tree of operations on Vector and Point
+    objects which results in a Point object.
+
+    """
     @pns.accepts(pns.Self, Vector)
     def __add__(self, rhs):
         if isinstance(rhs, Vector):
@@ -170,6 +214,15 @@ class BinopPoint(MetaBinop,Point):
 
 @pns.paranoidclass
 class BinopVector(MetaBinop,Vector):
+    """A Vector which is a composite of points and vectors in different bases.
+
+    Each Vector and Point's coordinate system depends on the Canvas
+    object, and thus, we cannot immediately compute sums or
+    differences of Vector or Point objects.  Instead, this object
+    represents a node in a tree of operations on Vector and Point
+    objects which results in a Vector object.
+
+    """
     def __new__(cls, lhs, op, rhs):
         if cls == BinopVector and isinstance(lhs, Width) and isinstance(rhs, Width):
             return BinopWidth(lhs, op, rhs)
@@ -193,8 +246,10 @@ class BinopVector(MetaBinop,Vector):
     def __truediv__(self, rhs):
         return BinopVector(self.lhs/rhs, self.op, self.rhs/rhs)
     def width(self):
+        """Returns a BinopWidth object representing the x component of the Vector."""
         return self.op_table[self.op](self.lhs.width(), self.rhs.width())
     def height(self):
+        """Returns a BionpHeight object representing the y component of the Vector."""
         return self.op_table[self.op](self.lhs.height(), self.rhs.height())
     @classmethod
     def _generate(cls):
@@ -202,9 +257,11 @@ class BinopVector(MetaBinop,Vector):
         yield cls(Point(-.2, .2), '-', cls(Point(0, -1, "absolute"), '+', Width(2, "otherunit")))
 
 class BinopWidth(BinopVector,Width):
+    """A composite of Width objects, analogous to BinopVector."""
     pass
 
 class BinopHeight(BinopVector,Height):
+    """A composite of Height objects, analogous to BinopVector."""
     pass
 
 class LegendItem:
@@ -216,11 +273,28 @@ class LegendItem:
 
 @pns.paranoidclass
 class Canvas:
+    """Canvas is a convenient way of arranging and organizing axes and other elements on a figure.
+
+    Create a Canvas by specifying its x and y size in inches (`size_x`
+    and `size_y`).  Optionally, specify the font size in points
+    (`fontsize`) and the font name as a valid postscript font (`font`).
+
+    A Canvas makes it easy to add create attractive composite layouts
+    in matplotlib.  When a figure consists of just a single axis, it
+    is not difficult to create an attractive layout.  However, when
+    many axes are combined (e.g. into subpanels), it becomes more
+    difficult to standardize the components such as font size and
+    style.  Additionally, for non-grid layouts, it is difficult to
+    correctly compute the position of the axes, align text and arrows,
+    and other layout-related tasks.  Canvas provides a set of features
+    to make layouts and fonts trivial.
+
+    """
     @pns.accepts(pns.Self, pns.Number, pns.Number, pns.Number, pns.String)
     @pns.paranoidconfig(unit_test=False)
     def __init__(self, size_x, size_y, fontsize=12, font="Helvetica Neue LT Std"):
         self.figure = plt.figure(figsize=(size_x, size_y))
-        self.size = (size_x, size_y)
+        self.size = (size_x, size_y) # Size of the figure in inches
         self.axes = dict()
         self.units = dict()
         self.default_unit = "figure"
@@ -247,19 +321,54 @@ class Canvas:
         fprops = plt.matplotlib.font_manager.FontProperties(fname=fontfile, size=size)
         return fprops
     @pns.accepts(pns.Self, pns.String, Vector, Point)
-    @pns.requires('name not in self.units')
+    @pns.requires('self.is_valid_identifier(name)')
+    @pns.ensures('not self.is_valid_identifier(name)')
     def add_unit(self, name, scale, origin=Point(0, 0, "figure")):
+        """Create a new unit of measure.
+
+        A unit is defined by an affine transformation.  It has an
+        origin and a scale in the x and y dimensions.  The name of the
+        unit is given by `name`, the scale in the x and y directions
+        is given by `scale`, and the origin of the coordinate system
+        is optionally specified by `origin`.
+
+        """
         scale = self.convert_to_figure_length(scale)
         origin = self.convert_to_figure_coord(origin)
         self.units[name] = (scale.width().x, scale.height().y, origin)
-    @pns.accepts(pns.Self, pns.String, Point, Point)
+    @pns.accepts(pns.Self, pns.String)
     @pns.requires("self.is_unit(name)")
     def set_default_unit(self, name):
+        """Changes the default unit for the Canvas.
+
+        When a unit is not specified for a Point or a Vector, it uses
+        the default unit of the Canvas.  The default is initially set
+        to figure coordinates.
+
+        """
         self.default_unit = name
     @pns.accepts(pns.Self, pns.String, Point, Point)
     @pns.requires("self.is_valid_identifier(name)")
     @pns.ensures("not self.is_valid_identifier(name)")
     def add_axis(self, name, pos_ll, pos_ur):
+        """Create a new axis on the Canvas.
+
+        Create a new matplotlib axis named `name`, with the lower left
+        corner at point `pos_ll` and the upper right corner at
+        `pos_ur`.  Note that the axis labels, title, and other
+        elements may fall outside of this bounding box.  The axis of a
+        Canvas object "c" with name "axname" can be accessed by:
+
+            ax = c.ax("axname")
+
+        Then, ax can be used like a normal matplotlib axis.
+
+        This also creates two new coordinate systems: one is given by
+        the axis' name, which uses the coordinates of the data in the
+        axis, and "axis_" prepended to the axis' name, which is (0,0)
+        at the lower left corner and (1,1) at the upper right corner
+
+        """
         assert name not in self.axes.keys(), "Axis name alredy exists"
         assert name != "figure", "Invalid axis name"
         pt_ll = self.convert_to_figure_coord(pos_ll)
@@ -269,14 +378,9 @@ class Canvas:
         sns.despine(ax=ax)
         return ax
     @pns.accepts(pns.Self, pns.String)
-    @pns.requires("name in self.axes.keys()")
-    @pns.ensures("name not in self.axes.keys()")
-    def delete_axis(self, name):
-        self.figure.delaxes(self.ax(name))
-        del self.axes[name]
-    @pns.accepts(pns.Self, pns.String)
-    @pns.ensures("self.valid_identifier(name)")
+    @pns.ensures("self.is_unit(name)")
     def ax(self, name):
+        """Return the axis of name `name`."""
         return self.axes[name]
     @pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), plt.matplotlib.colors.Normalize))
     def add_colorbar(self, name, pos_ll, pos_ur, cmap, bounds, **kwargs):
@@ -304,7 +408,7 @@ class Canvas:
             return True
         if not name.startswith("axis_") and self.is_unit("axis_"+name):
             return True
-        if ident in self.units.keys():
+        if name in self.units.keys():
             return True
         return False
     @pns.accepts(pns.Self, pns.String)
@@ -323,6 +427,15 @@ class Canvas:
     @pns.returns(Metric)
     @pns.ensures("return.coordinate == 'figure'")
     def convert_to_figure_coord(self, point):
+        """Convert the coordinate system of the Point or Vector `point` to be "figure".
+
+        We can convert any coordinate system to the "figure"
+        coordinate system for a given Point or Vector.  This is useful
+        for comparing Points and Vectors, and also used internally as
+        a universal coordinate system.  It also collapses Binop
+        objects into Points or Vectors.
+
+        """
         if isinstance(point, Vector):
             return self.convert_to_figure_length(point)
         if point.coordinate == "default":
@@ -354,6 +467,15 @@ class Canvas:
     @pns.returns(Vector)
     @pns.ensures("return.coordinate == 'figure'")
     def convert_to_figure_length(self, vector):
+        """Convert the coordinate system of the Vector `vector` to be "figure".
+
+        We can convert any coordinate system to the "figure"
+        coordinate system for a given Vector.  This is useful for
+        comparing vectors, and also used internally as a universal
+        coordinate system.  It also collapses BinopVectors into
+        Vectors.
+
+        """
         if vector.coordinate == "figure":
             return vector
         elif isinstance(vector, BinopVector):
@@ -364,6 +486,13 @@ class Canvas:
             return self.convert_to_figure_coord(origin+vector) - self.convert_to_figure_coord(origin)
     @pns.accepts(pns.Self, pns.List(Point))
     def draw_poly(self, points, **kwargs):
+        """Draw a polygon with given vertices.
+
+        Vertices are passed as a list of Point objects via the
+        `points` argument.  All other keyword arguments are passed
+        directly to matplotlib.patches.Polygon.
+
+        """
         np_points = np.zeros((len(points), 2))
         for i,p in enumerate(points):
             pt = self.convert_to_figure_coord(p)
@@ -375,6 +504,13 @@ class Canvas:
         plt.draw()
     @pns.accepts(pns.Self, Point, Point)
     def draw_rect(self, pos_ll, pos_ur, **kwargs):
+        """Draw a rectangle.
+
+        The lower left corner is the Point `pos_ll` and the upper
+        right corner is the Point `pos_ur`.  All other keyword
+        arguments are passed directly to matplotlib.patches.Polygon.
+
+        """
         pt_ll = self.convert_to_figure_coord(pos_ll)
         pt_ur = self.convert_to_figure_coord(pos_ur)
         # When drawing a box you have to duplicate the last point for
@@ -382,6 +518,14 @@ class Canvas:
         self.draw_poly([Point(pt_ll.x, pt_ll.y), Point(pt_ll.x, pt_ur.y), Point(pt_ur.x, pt_ur.y),
                         Point(pt_ur.x, pt_ll.y), Point(pt_ll.x, pt_ll.y), Point(pt_ll.x, pt_ll.y)], **kwargs)
     def draw_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
+        """Draw an arrow.
+
+        Draw an arrow from Point `frm` to Point `to`.  All other
+        keyword arguments are passed directly to
+        matplotlib.patches.FancyArrowPath.  Reasonable default
+        arguments are given, but these can be overridden.
+
+        """
         pt_frm = self.convert_to_figure_coord(frm)
         pt_to = self.convert_to_figure_coord(to)
         pt_delta = pt_frm - pt_to
@@ -389,6 +533,20 @@ class Canvas:
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
     def add_text(self, text, pos, weight="roman", size=None, stretch="normal", **kwargs):
+        """Add text at a given point.
+
+        Draw the text `text` at Point `pos`.  The argument `weight`
+        specifies the font weight, which varies depending on the
+        weights of the font, but potential options may be "light",
+        "roma", "bold", "heavy", "black".  The size is given by `size`
+        in points, which defaults to the Canvas' default. The width is
+        given by "stretch", which can be "consensed", "normal", or
+        "wide", depending on the font.  All other keyword arguments
+        are passed to matplotlib.pyplot.text.  Notably, the
+        `horizontalalignment` and `verticalalignment` arguments are
+        often useful.
+
+        """
         if size is None:
             size = self.fontsize
         print("Adding text", text)
@@ -405,16 +563,39 @@ class Canvas:
                          fontproperties=fprops, fontsize=size, **kwargs)
         plt.draw()
     def draw_line(self, frm, to, **kwargs):
+        """Draw a line.
+
+        Draw a line from Point `frm` to Point `to`.  All other keyword
+        arguments are passed directly to matplotlib.lines.Line2D.
+
+        """
         frm = self.convert_to_figure_coord(frm)
         to = self.convert_to_figure_coord(to)
         l2d = plt.matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y], **kwargs)
         self.figure.add_artist(l2d)
     def draw_marker(self, pos, **kwargs):
+        """Draw a matplotlib marker.
+
+        Plot a marker at Point `pos`.  All other keyword arguments are
+        passed directly to matplotlib.lines.Line2D.
+
+        """
         pos = self.convert_to_figure_coord(pos)
         l2d = plt.matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
         self.figure.add_artist(l2d)
-    @pns.accepts(pns.Self, Point, pns.List(LegendItem), pns.Maybe(pns.Natural1))
+    @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Unchecked, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1))
     def add_legend(self, pos_tl, els, fontsize=None):
+        """Add a legend without using the matplotlib API.
+
+        The top-left corner of the legend should be located at the
+        Point `pos_tl`.  The `els` argument should be a list of tuples
+        representing the elements to include in the legend.  The first
+        element of each tuple should be the name of the legend item,
+        the second element should be the color, and the third should
+        be a dictionary of line properties to be passed to the
+        draw_line and draw_marker functions.
+
+        """
         if fontsize is None:
             fontsize = self.fontsize
         pos_tl = self.convert_to_figure_coord(pos_tl)
@@ -431,7 +612,7 @@ class Canvas:
         padding_sep = Width(1.2, "Msize") # Separation between legend line and text
         padding_left = Width(1.5, "Msize") # Space on left of lines
         line_spacing = Height(2.2, "Msize") # Number of M heights per line height
-        sym_width = Width(2, "Msize") # Width of each legend line (or symbol)
+        sym_width = Width(2.5, "Msize") # Width of each legend line (or symbol)
         # Convert these to an easier coordinate system
         padding_top = self.convert_to_figure_length(padding_top)
         padding_left = self.convert_to_figure_length(padding_left)
@@ -459,6 +640,14 @@ class Canvas:
             params_noline['linestyle'] = 'None'
             self.draw_marker((pt1+pt2)/2, **params_noline)
     def fix_fonts(self):
+        """Convert all text to the desired font.
+
+        This function will fix all font objects within the figure.
+        This must be called before displaying or saving the Canvas.
+        Usually this is called automatically, but can be called
+        manually as well.
+
+        """
         fprops = self._get_font()
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():
@@ -492,6 +681,34 @@ class Canvas:
     @pns.requires("int(spacing_x is not None) + int(size_x is not None) + int(spacing is not None) + int(size is not None)") # Exactly one of spacing_x, size_x, spacing, or size must be specified
     @pns.requires("int(spacing_y is not None) + int(size_y is not None) + int(spacing is not None) + int(size is not None)") # Exactly one of spacing_y, size_y, spacing, or size must be specified
     def add_grid(self, names, nrows, pos_ll, pos_ur, spacing_x=None, spacing_y=None, spacing=None, size_x=None, size_y=None, size=None):
+        """Create a grid of axes.
+
+        Axes are specified by the `names` argument, a
+        (one-dimensional) list of strings specifying the names of the
+        axes to be created on the grid.  Optionally an element may be
+        None, indicating that no axis should be created at this
+        location on the grid.  Names start on the top line and go left
+        to right and then line by line, just like words on a page.
+
+        The argument `nrows` specifies how many rows should be
+        created; the number of columns is implied by the number of
+        rows and the length of `names`.
+
+        The lower left corner of the grid is located as Point `pos_ll`
+        and the upper right corner is at Point `pos_ur`.
+
+        There are two ways to specify spacing of axes.  One method is
+        to specify the size of the axes by the Vector `size`, or
+        component-wise by the Width `size_x` and Height `size_y`.
+        Axes will be automatically spaced to maintain the given size
+        The other method is to specify the spacing of the axes with
+        the Vector `spacing` or component-wise with the Width
+        `spacing_x` and Height `spacing_y`.  The axes will be
+        automatically sized to give the desired spacing.  Finally, it
+        is possible to mix these styles by specifying `spacing_x` and
+        `size_y` or vice versa.
+
+        """
         if spacing is not None:
             spacing_x = spacing.width()
             spacing_y = spacing.height()
@@ -526,8 +743,16 @@ class Canvas:
                 self.add_axis(names[i], Point(posx[x][0], posy[y][0], "figure"), Point(posx[x][1], posy[y][1], "figure"))
     @pns.accepts(pns.Self, pns.String)
     def save(self, filename, *args, **kwargs):
+        """Save the Canvas to a png or pdf file.
+
+        The filename is specified by the string `filename`.  Any
+        additional arguments or keyword arguments are passed to the
+        "savefig" function in matplotlib.
+
+        """
         filetypes = ['png', 'pdf']
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
+        self.fix_fonts()
         with plt.rc_context(rc=self.localRc):
             self.figure.savefig(filename, *args, **kwargs)
         if filetype == "png":
@@ -567,6 +792,23 @@ class Canvas:
             pdf.saveIncr()
             pdf.close()
     def add_image(self, filename, pos, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
+        """Add a png or pdf image to the Canvas.
+
+        Insert a .png or .pdf file overlaid on the Canvas.  The string
+        `filename` is the filename of the image, the Point `pos` is
+        the location of the image, aligned according to
+        `horizontalalignment` (may be "left", "center", or "right")
+        and `verticalalignment` (may be "top", "center", or "bottom").
+        Either a Height `height` or a Width `width` must be specified.
+        The image will be scaled in the unspecified direction to
+        maintain the aspect ratio.  If both `height` and `width` are
+        specified, then the image's aspect ratio will be ignored.
+
+        Note: As the conversion processes for png and pdf export use
+        different libraries, there may be slight differences in output
+        depending on output format.
+
+        """
         pos_ll = self.convert_to_figure_coord(pos)
         assert height is not None or width is not None, "Either height or width must be given"
         with PIL.Image.open(filename) as img:
@@ -603,6 +845,7 @@ class Canvas:
         assert any(ft for ft in filetypes if filename.endswith("."+ft))
         self.images.append((filename, pos_ll, pos_ur))
     def show(self):
+        """Display the Canvas in a new window (non-blocking)."""
         tmp = tempfile.mkstemp('.png')[1]
         self.tmpfiles.append(tmp)
         self.save(tmp)

@@ -153,7 +153,7 @@ def test_commutative_vector_multiplication():
 def test_example_canvas():
     c = Canvas(4, 4, fontsize=9)
     c.add_axis("ax1", Point(.1, .1, "figure"), Point(.5, .5, "figure"))
-    c.add_axis("ax2", Point(2.3, 2.3, "absolute"), Point(-.1, -.1, "-absolute")))
+    c.add_axis("ax2", Point(2.3, 2.3, "absolute"), Point(-.1, -.1, "-absolute"))
     c.ax("ax1").plot(np.linspace(0, 4, 100), np.sin(np.linspace(0, 4, 100)))
     c.ax("ax2").plot(np.linspace(0, 4, 5), np.linspace(0, 4, 5))
     # TODO
