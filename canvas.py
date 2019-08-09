@@ -68,10 +68,13 @@ class Point:
             if self.coordinate == other.coordinate:
                 return Vector(self.x - other.x, self.y - other.y, self.coordinate)
             else:
-                return BinopPoint(self, '-', other)
+                return BinopVector(self, '-', other)
         raise ValueError(f"Invalid subtraction between {repr(self)} and {repr(other)}.")
     def __eq__(self, other):
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
+    def __iter__(self):
+        yield self.x
+        yield self.y
     @staticmethod
     def _generate():
         yield Point(0, 0)
@@ -144,6 +147,9 @@ class Vector:
         return Height(self.y, self.coordinate)
     def __eq__(self, other):
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
+    def __iter__(self):
+        yield self.x
+        yield self.y
     @classmethod
     def _generate(cls):
         yield Height(.3)
@@ -176,14 +182,20 @@ class Height(Vector):
 class MetaBinop:
     coordinate = "various"
     op_table = {'+': lambda lhs,rhs : lhs + rhs,
-                '-': lambda lhs,rhs : lhs - rhs}
-    @pns.accepts(pns.Self, Metric, pns.Set(['+', '-']), Metric)
+                '-': lambda lhs,rhs : lhs - rhs,
+                '*': lambda lhs,rhs : lhs * rhs,
+                '/': lambda lhs,rhs : lhs / rhs}
+    @pns.accepts(pns.Self, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/']), pns.Or(Metric, pns.Number))
     def __init__(self, lhs, op, rhs):
         self.lhs = lhs
         self.rhs = rhs
         self.op = op
     def __repr__(self):
         if self.op == '-' and isinstance(self.rhs, MetaBinop):
+            return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
+        elif self.op in ['*', '/'] and isinstance(self.lhs, MetaBinop):
+            return f'({repr(self.lhs)}) {self.op} {repr(self.rhs)}'
+        elif self.op == '*' and isinstance(self.rhs, MetaBinop):
             return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
         else:
             return f'{repr(self.lhs)} {self.op} {repr(self.rhs)}'
@@ -241,16 +253,21 @@ class BinopVector(MetaBinop,Vector):
         return BinopVector(self, '-', rhs)
     @pns.accepts(pns.Self, pns.Number)
     def __mul__(self, rhs):
-        return BinopVector(self.lhs*rhs, self.op, self.rhs*rhs)
+        return BinopVector(self, '*', rhs)
     @pns.accepts(pns.Self, pns.Number)
     def __truediv__(self, rhs):
-        return BinopVector(self.lhs/rhs, self.op, self.rhs/rhs)
+        return BinopVector(self, '/', rhs)
     def width(self):
         """Returns a BinopWidth object representing the x component of the Vector."""
-        return self.op_table[self.op](self.lhs.width(), self.rhs.width())
+        # Handle cases where we use a scalar instead of a vector
+        lhs_width = self.lhs.width() if hasattr(self.lhs, "width") else self.lhs
+        rhs_width = self.rhs.width() if hasattr(self.rhs, "width") else self.rhs
+        return self.op_table[self.op](lhs_width, rhs_width)
     def height(self):
         """Returns a BionpHeight object representing the y component of the Vector."""
-        return self.op_table[self.op](self.lhs.height(), self.rhs.height())
+        lhs_height = self.lhs.height() if hasattr(self.lhs, "height") else self.lhs
+        rhs_height = self.rhs.height() if hasattr(self.rhs, "height") else self.rhs
+        return self.op_table[self.op](lhs_height, rhs_height)
     @classmethod
     def _generate(cls):
         yield cls(Point(0, 1), '+', Point(3, 2, "absolute"))
@@ -263,13 +280,6 @@ class BinopWidth(BinopVector,Width):
 class BinopHeight(BinopVector,Height):
     """A composite of Height objects, analogous to BinopVector."""
     pass
-
-class LegendItem:
-    # Accepts the same arguments as matplotlib.lines.Line2D
-    def __init__(self, text, color, **kwargs):
-        self.text = text
-        kwargs['color'] = color
-        self.params = kwargs
 
 @pns.paranoidclass
 class Canvas:
@@ -460,8 +470,16 @@ class Canvas:
             u = point.coordinate
             return Vector(point.x*self.units[u][0], point.y*self.units[u][1], "figure") + self.units[u][2]
         if isinstance(point, BinopPoint):
-            return BinopPoint.op_table[point.op](self.convert_to_figure_coord(point.lhs),
-                                                 self.convert_to_figure_coord(point.rhs))
+            # Call recursively, but handle the scalar case separately
+            if isinstance(point.lhs, Point) or isinstance(point.lhs, Vector):
+                lhs = self.convert_to_figure_coord(point.lhs)
+            else:
+                lhs = point.lhs
+            if isinstance(point.rhs, Point) or isinstance(point.rhs, Vector):
+                rhs = self.convert_to_figure_coord(point.rhs)
+            else:
+                rhs = point.rhs
+            return BinopPoint.op_table[point.op](lhs, rhs)
         raise ValueError("Invalid point coordinate system %s" % point.coordinate)
     @pns.accepts(pns.Self, Vector)
     @pns.returns(Vector)
@@ -479,13 +497,21 @@ class Canvas:
         if vector.coordinate == "figure":
             return vector
         elif isinstance(vector, BinopVector):
-            return BinopVector.op_table[vector.op](self.convert_to_figure_length(vector.lhs),
-                                                   self.convert_to_figure_length(vector.rhs))
+            # Call recursively, but handle the scalar case separately
+            if isinstance(vector.lhs, Point) or isinstance(vector.lhs, Vector):
+                lhs = self.convert_to_figure_coord(vector.lhs)
+            else:
+                lhs = vector.lhs
+            if isinstance(vector.rhs, Point) or isinstance(vector.rhs, Vector):
+                rhs = self.convert_to_figure_coord(vector.rhs)
+            else:
+                rhs = vector.rhs
+            return BinopVector.op_table[vector.op](lhs, rhs)
         else:
             origin = Point(0, 0, vector.coordinate)
             return self.convert_to_figure_coord(origin+vector) - self.convert_to_figure_coord(origin)
     @pns.accepts(pns.Self, pns.List(Point))
-    def draw_poly(self, points, **kwargs):
+    def add_poly(self, points, **kwargs):
         """Draw a polygon with given vertices.
 
         Vertices are passed as a list of Point objects via the
@@ -503,7 +529,7 @@ class Canvas:
         self.figure.patches.append(poly)
         plt.draw()
     @pns.accepts(pns.Self, Point, Point)
-    def draw_rect(self, pos_ll, pos_ur, **kwargs):
+    def add_rect(self, pos_ll, pos_ur, **kwargs):
         """Draw a rectangle.
 
         The lower left corner is the Point `pos_ll` and the upper
@@ -513,11 +539,11 @@ class Canvas:
         """
         pt_ll = self.convert_to_figure_coord(pos_ll)
         pt_ur = self.convert_to_figure_coord(pos_ur)
+        connect = pt_ur - pt_ll
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
-        self.draw_poly([Point(pt_ll.x, pt_ll.y), Point(pt_ll.x, pt_ur.y), Point(pt_ur.x, pt_ur.y),
-                        Point(pt_ur.x, pt_ll.y), Point(pt_ll.x, pt_ll.y), Point(pt_ll.x, pt_ll.y)], **kwargs)
-    def draw_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
+        self.add_poly([pt_ll, pt_ll+connect.height(), pt_ur, pt_ll+connect.width(), pt_ll, pt_ll], **kwargs)
+    def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
 
         Draw an arrow from Point `frm` to Point `to`.  All other
@@ -562,7 +588,7 @@ class Canvas:
         self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure,
                          fontproperties=fprops, fontsize=size, **kwargs)
         plt.draw()
-    def draw_line(self, frm, to, **kwargs):
+    def add_line(self, frm, to, **kwargs):
         """Draw a line.
 
         Draw a line from Point `frm` to Point `to`.  All other keyword
@@ -573,7 +599,7 @@ class Canvas:
         to = self.convert_to_figure_coord(to)
         l2d = plt.matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y], **kwargs)
         self.figure.add_artist(l2d)
-    def draw_marker(self, pos, **kwargs):
+    def add_marker(self, pos, **kwargs):
         """Draw a matplotlib marker.
 
         Plot a marker at Point `pos`.  All other keyword arguments are
@@ -591,9 +617,8 @@ class Canvas:
         Point `pos_tl`.  The `els` argument should be a list of tuples
         representing the elements to include in the legend.  The first
         element of each tuple should be the name of the legend item,
-        the second element should be the color, and the third should
-        be a dictionary of line properties to be passed to the
-        draw_line and draw_marker functions.
+        the second element should be a dictionary of line properties
+        to be passed to the add_line and add_marker functions.
 
         """
         if fontsize is None:
@@ -612,7 +637,7 @@ class Canvas:
         padding_sep = Width(1.2, "Msize") # Separation between legend line and text
         padding_left = Width(1.5, "Msize") # Space on left of lines
         line_spacing = Height(2.2, "Msize") # Number of M heights per line height
-        sym_width = Width(2.5, "Msize") # Width of each legend line (or symbol)
+        sym_width = Width(2.3, "Msize") # Width of each legend line (or symbol)
         # Convert these to an easier coordinate system
         padding_top = self.convert_to_figure_length(padding_top)
         padding_left = self.convert_to_figure_length(padding_left)
@@ -625,20 +650,20 @@ class Canvas:
             y_offset = -1*line_spacing*i
             print(y_offset)
             # Draw the text
-            self.add_text(els[i].text,
+            self.add_text(els[i][0],
                           top_left + sym_width + padding_sep + y_offset,
                           horizontalalignment="left", size=fontsize)
             pt1 = top_left + y_offset
             pt2 = top_left + sym_width + y_offset
             # Draw the line
-            params_nomarker = els[i].params.copy()
+            params_nomarker = els[i][1].copy()
             params_nomarker['markersize'] = 0
-            self.draw_line(pt1, pt2, **params_nomarker)
+            self.add_line(pt1, pt2, **params_nomarker)
             # Draw the marker.  We need this in an if statement due to
             # a bug in matplotlib.
-            params_noline = els[i].params.copy()
+            params_noline = els[i][1].copy()
             params_noline['linestyle'] = 'None'
-            self.draw_marker((pt1+pt2)/2, **params_noline)
+            self.add_marker(pt1+(pt2-pt1)/2, **params_noline)
     def fix_fonts(self):
         """Convert all text to the desired font.
 
@@ -734,8 +759,8 @@ class Canvas:
             print("Spacing", spacing_y)
         spacing_x = self.convert_to_figure_length(spacing_x)
         spacing_y = self.convert_to_figure_length(spacing_y)
-        posx = self._grid_space(pt_ll.x, pt_ur.x, spacing_x.l, ncols)
-        posy = list(reversed(self._grid_space(pt_ll.y, pt_ur.y, spacing_y.l, nrows)))
+        posx = self._grid_space(pt_ll.x, pt_ur.x, spacing_x.x, ncols)
+        posy = list(reversed(self._grid_space(pt_ll.y, pt_ur.y, spacing_y.y, nrows)))
         for i in range(0, len(names)):
             x = i % ncols
             y = i // ncols

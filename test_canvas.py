@@ -157,3 +157,5 @@ def test_example_canvas():
     c.ax("ax1").plot(np.linspace(0, 4, 100), np.sin(np.linspace(0, 4, 100)))
     c.ax("ax2").plot(np.linspace(0, 4, 5), np.linspace(0, 4, 5))
     # TODO
+
+# TODO add (Point-Point) and (BinopPoint-BinopPoint) into test battery
