@@ -399,8 +399,8 @@ class Canvas:
             norm = plt.matplotlib.colors.Normalize(vmin=bounds[0], vmax=bounds[1])
         else:
             norm = bounds
-        size = pos_ur - pos_ll
-        orientation = "horizontal" if size.width().l > size.height().l else "vertical"
+        size = self.convert_to_figure_coord(pos_ur - pos_ll)
+        orientation = "horizontal" if size.x > size.y else "vertical"
         colorbar = plt.matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
@@ -817,7 +817,7 @@ class Canvas:
             pdf.saveIncr()
             pdf.close()
     def add_image(self, filename, pos, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
-        """Add a png or pdf image to the Canvas.
+        """Add a png image to the Canvas.
 
         Insert a .png or .pdf file overlaid on the Canvas.  The string
         `filename` is the filename of the image, the Point `pos` is
