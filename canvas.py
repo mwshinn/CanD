@@ -934,8 +934,5 @@ class Canvas:
 
 
 # TODO:
-# Fix this code: (Point(0, 1, "a") - Point(0, 1, "b")).width()
 # Fix meet operator >> and << (plus better printing)
-
 # TODO add "thin" to font-manager.py in matplotlib line 81
-# TODO fix height and width

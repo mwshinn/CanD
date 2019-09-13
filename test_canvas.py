@@ -27,6 +27,18 @@ for v in [-.4, 0, 1]:
     vectors.append(Width(v, "default"))
     vectors.append(Height(v, "newunit"))
 
+for ax in axes:
+    points.append(Point(.3, .2, ax))
+    points.append(Point(0, 0, ax))
+    points.append(Point(0, 1, ax))
+    points.append(Point(100, 0, ax))
+    points.append(Point(.1, -.2, ax) + Vector(1, 1, "absolute"))
+    points.append(Point(.1, -.2, ax) - Vector(1, 1, "absolute"))
+    points.append(Point(1, 1, ax) >> Point(.3, .1, "absolute"))
+    points.append(Point(1, 1, ax) << Point(.3, .1, "figure"))
+    points.append(Point(1, 1, ax) | Point(.3, .1, "figure"))
+    points.append(Point(.1, -.2, "figure") + (Point(1.1, 2.1, ax) - Point(.3, .6, "absolute"))/2)
+    
 def test_width_height_objects():
     def make_vec(x,y,binop):
         if binop:
@@ -89,6 +101,36 @@ def test_vector_identities():
         assert points_close(c.convert_to_figure_coord(v), c.convert_to_figure_coord(v*1)) # Multiplicative identity
         assert points_close(c.convert_to_figure_coord(v), c.convert_to_figure_coord(v*1)) # Multiplicative identity
 
+def test_point_indentities():
+    c = Canvas(5,5)
+    c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
+    c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
+    for p in points:
+        assert points_close(c.convert_to_figure_coord(p+Vector(0,0,"ax1")), c.convert_to_figure_coord(p)+c.convert_to_figure_length(Vector(0,0,"ax1")))
+
+def test_point_meet_right():
+    c = Canvas(5,5)
+    c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
+    c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
+    for p1 in points:
+        for p2 in points:
+            assert points_close(c.convert_to_figure_coord(p1) >> c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 >> p2))
+
+def test_point_meet_left():
+    c = Canvas(5,5)
+    c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
+    c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
+    for p1 in points:
+        for p2 in points:
+            assert points_close(c.convert_to_figure_coord(p1) << c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 << p2))
+            
+def test_point_mean():
+    c = Canvas(5,5)
+    c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
+    c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
+    for p1 in points:
+        for p2 in points:
+            assert points_close(c.convert_to_figure_coord(p1) | c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 | p2))
 
 def test_linear_vector_multiplication():
     for l in lower_points:
@@ -165,6 +207,5 @@ def test_example_canvas():
     c.ax("ax2").plot(np.linspace(0, 4, 5), np.linspace(0, 4, 5))
     # TODO
 
-# TODO add (Point-Point) and (BinopPoint-BinopPoint) into test battery
-# TODO add list of points to test
-# TODO test |, >>, and <<
+
+
