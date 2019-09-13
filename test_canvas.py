@@ -8,11 +8,16 @@ def points_close(p1, p2):
     return np.isclose(p1.x, p2.x) and np.isclose(p1.y, p2.y)
 
 vectors = []
+points = []
 axes = ["default", "figure", "newunit", "axis_ax1", "ax1", "absolute"]
 for ax in axes:
     vectors.append(Vector(.3, .7, ax))
     vectors.append(Vector(-.2, -.9, ax)+Vector(.22, .1, "absolute"))
     vectors.append(Vector(0, .3, ax)+Vector(.01, -.01, "ax1")-Vector(1.1, 1.1, "default"))
+    vectors.append((Point(.2, .3, ax) - Point(.5, .1, "newunit")))
+    vectors.append((Point(.2, .3, ax) >> Point(1, 1, "absolute")) - Point(.5, .1, "newunit"))
+    vectors.append((Point(.2, .3, ax) << Point(1, 1, "absolute")) - Point(.5, .1, "newunit"))
+    vectors.append((Point(.2, .3, ax) | Point(1, 1, "absolute")) - Point(.5, .1, "newunit"))
 
 for v in [(0, 0), (1, 0), (0, 1), (1.1, -1.3)]:
     vectors.append(Vector(*v, "figure"))
@@ -51,6 +56,8 @@ def test_width_and_height_methods():
         w = c.convert_to_figure_length(v1.width())
         v = c.convert_to_figure_coord(v1)
         assert points_close(v, h+w)
+        assert points_close(h, v.height())
+        assert points_close(w, v.width())
 
 def test_associative_vector_multiplication():
     for l in lower_points:
@@ -159,3 +166,5 @@ def test_example_canvas():
     # TODO
 
 # TODO add (Point-Point) and (BinopPoint-BinopPoint) into test battery
+# TODO add list of points to test
+# TODO test |, >>, and <<

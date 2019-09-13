@@ -75,6 +75,28 @@ class Point:
     def __iter__(self):
         yield self.x
         yield self.y
+    def __rshift__(self, other):
+        if not isinstance(other, Point):
+            raise ValueError(f"Invalid meet >> operation between {repr(self)} and {repr(other)}.")
+        if self.coordinate == other.coordinate:
+            return Point(self.x, other.y, self.coordinate)
+        else:
+            return BinopPoint(self, '>>', other)
+    def __lshift__(self, other):
+        if not isinstance(other, Point):
+            raise ValueError(f"Invalid meet << operation between {repr(self)} and {repr(other)}.")
+        if self.coordinate == other.coordinate:
+            return Point(other.x, self.y, self.coordinate)
+        else:
+            return BinopPoint(self, '<<', other)
+    def __or__(self, other):
+        if not isinstance(other, Point):
+            raise ValueError(f"Invalid meet << operation between {repr(self)} and {repr(other)}.")
+        if self.coordinate == other.coordinate:
+            return Point((self.x+other.x)/2, (self.y+other.y)/2, self.coordinate)
+        else:
+            return BinopPoint(self, '|', other)
+
     @staticmethod
     def _generate():
         yield Point(0, 0)
@@ -184,8 +206,11 @@ class MetaBinop:
     op_table = {'+': lambda lhs,rhs : lhs + rhs,
                 '-': lambda lhs,rhs : lhs - rhs,
                 '*': lambda lhs,rhs : lhs * rhs,
-                '/': lambda lhs,rhs : lhs / rhs}
-    @pns.accepts(pns.Self, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/']), pns.Or(Metric, pns.Number))
+                '/': lambda lhs,rhs : lhs / rhs,
+                '>>': lambda lhs,rhs : lhs >> rhs,
+                '<<': lambda lhs,rhs : lhs << rhs,
+                '|': lambda lhs,rhs : lhs | rhs}
+    @pns.accepts(pns.Self, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '<<', '|']), pns.Or(Metric, pns.Number))
     def __init__(self, lhs, op, rhs):
         self.lhs = lhs
         self.rhs = rhs
@@ -197,6 +222,8 @@ class MetaBinop:
             return f'({repr(self.lhs)}) {self.op} {repr(self.rhs)}'
         elif self.op == '*' and isinstance(self.rhs, MetaBinop):
             return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
+        elif self.op in ['<<', '>>']:
+            return f'(({repr(self.lhs)}) {self.op} ({repr(self.rhs)}))'
         else:
             return f'{repr(self.lhs)} {self.op} {repr(self.rhs)}'
     def __eq__(self, other):
@@ -223,6 +250,21 @@ class BinopPoint(MetaBinop,Point):
             return BinopPoint(self, '-', rhs)
         elif isinstance(rhs, Point):
             return BinopVector(self, '-', rhs)
+    def __lshift__(self, rhs):
+        if isinstance(rhs, Point):
+            return BinopPoint(self, '<<', rhs)
+        else:
+            raise ValueError(f"Invalid meet << between {repr(self)} and {repr(other)}.")
+    def __rshift__(self, rhs):
+        if isinstance(rhs, Point):
+            return BinopPoint(self, '>>', rhs)
+        else:
+            raise ValueError(f"Invalid meet >> between {repr(self)} and {repr(other)}.")
+    def __or__(self, rhs):
+        if isinstance(rhs, Point):
+            return BinopPoint(self, '|', rhs)
+        else:
+            raise ValueError(f"Invalid mean | between {repr(self)} and {repr(other)}.")
 
 @pns.paranoidclass
 class BinopVector(MetaBinop,Vector):
@@ -260,14 +302,10 @@ class BinopVector(MetaBinop,Vector):
     def width(self):
         """Returns a BinopWidth object representing the x component of the Vector."""
         # Handle cases where we use a scalar instead of a vector
-        lhs_width = self.lhs.width() if hasattr(self.lhs, "width") else self.lhs
-        rhs_width = self.rhs.width() if hasattr(self.rhs, "width") else self.rhs
-        return self.op_table[self.op](lhs_width, rhs_width)
+        return ((Point(0, 0, "figure") + self) >> Point(0, 0, "figure")) - Point(0, 0, "figure")
     def height(self):
         """Returns a BionpHeight object representing the y component of the Vector."""
-        lhs_height = self.lhs.height() if hasattr(self.lhs, "height") else self.lhs
-        rhs_height = self.rhs.height() if hasattr(self.rhs, "height") else self.rhs
-        return self.op_table[self.op](lhs_height, rhs_height)
+        return ((Point(0, 0, "figure") + self) << Point(0, 0, "figure")) - Point(0, 0, "figure")
     @classmethod
     def _generate(cls):
         yield cls(Point(0, 1), '+', Point(3, 2, "absolute"))
@@ -392,7 +430,7 @@ class Canvas:
     def ax(self, name):
         """Return the axis of name `name`."""
         return self.axes[name]
-    @pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), plt.matplotlib.colors.Normalize))
+    #@pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), plt.matplotlib.colors.Normalize))
     def add_colorbar(self, name, pos_ll, pos_ur, cmap, bounds, **kwargs):
         ax = self.add_axis(name, pos_ll, pos_ur)
         if isinstance(bounds, tuple):
@@ -555,10 +593,12 @@ class Canvas:
         pt_frm = self.convert_to_figure_coord(frm)
         pt_to = self.convert_to_figure_coord(to)
         pt_delta = pt_frm - pt_to
+        if "linewidth" in kwargs:
+            lw = kwargs['linewidth']
         arrow = plt.matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.figure.transFigure,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
-    def add_text(self, text, pos, weight="roman", size=None, stretch="normal", **kwargs):
+    def add_text(self, text, pos, weight="roman", size=None, stretch="normal", style="normal", **kwargs):
         """Add text at a given point.
 
         Draw the text `text` at Point `pos`.  The argument `weight`
@@ -584,7 +624,7 @@ class Canvas:
         pt = self.convert_to_figure_coord(pos)
         # Check valid font names with plt.matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
-        fprops = self._get_font(weight=weight, size=size, stretch=stretch)
+        fprops = self._get_font(weight=weight, size=size, stretch=stretch, style=style)
         self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure,
                          fontproperties=fprops, fontsize=size, **kwargs)
         plt.draw()
@@ -609,7 +649,7 @@ class Canvas:
         pos = self.convert_to_figure_coord(pos)
         l2d = plt.matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
         self.figure.add_artist(l2d)
-    @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Unchecked, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1))
+    @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1))
     def add_legend(self, pos_tl, els, fontsize=None):
         """Add a legend without using the matplotlib API.
 
@@ -702,9 +742,9 @@ class Canvas:
             base = frm+i*(figsize+spacing)
             pos.append((base, base+figsize))
         return pos
-    @pns.accepts(pns.Self, pns.List(pns.Maybe(pns.String)), pns.Natural1, Point, Point, pns.Maybe(Width), pns.Maybe(Height), pns.Maybe(Vector), pns.Maybe(Width), pns.Maybe(Height), pns.Maybe(Vector))
-    @pns.requires("int(spacing_x is not None) + int(size_x is not None) + int(spacing is not None) + int(size is not None)") # Exactly one of spacing_x, size_x, spacing, or size must be specified
-    @pns.requires("int(spacing_y is not None) + int(size_y is not None) + int(spacing is not None) + int(size is not None)") # Exactly one of spacing_y, size_y, spacing, or size must be specified
+    @pns.accepts(pns.Self, pns.List(pns.Maybe(pns.String)), pns.Natural1, Point, Point, pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector))
+    @pns.requires("int(spacing_x is not None) + int(size_x is not None) + int(spacing is not None) + int(size is not None) == 1") # Exactly one of spacing_x, size_x, spacing, or size must be specified
+    @pns.requires("int(spacing_y is not None) + int(size_y is not None) + int(spacing is not None) + int(size is not None) == 1") # Exactly one of spacing_y, size_y, spacing, or size must be specified
     def add_grid(self, names, nrows, pos_ll, pos_ur, spacing_x=None, spacing_y=None, spacing=None, size_x=None, size_y=None, size=None):
         """Create a grid of axes.
 
@@ -749,6 +789,9 @@ class Canvas:
                 spacing_x = ((pt_ur - pt_ll).width() - size_x * ncols)/(ncols-1)
             elif ncols == 1:
                 spacing_x = size_x*0
+                w = (pt_ur-pt_ll).width()
+                pt_ll = pt_ll + (w - size_x)/2
+                pt_ur = pt_ur - (w - size_x)/2
             print("Spacing", spacing_x)
         if size_y is not None:
             size_y = self.convert_to_figure_length(size_y)
@@ -756,6 +799,9 @@ class Canvas:
                 spacing_y = ((pt_ur - pt_ll).height() - size_y * nrows)/(nrows-1)
             elif nrows == 1:
                 spacing_y = size_y*0
+                h = (pt_ur-pt_ll).height()
+                pt_ll = pt_ll + (h - size_y)/2
+                pt_ur = pt_ur - (h - size_y)/2
             print("Spacing", spacing_y)
         spacing_x = self.convert_to_figure_length(spacing_x)
         spacing_y = self.convert_to_figure_length(spacing_y)
@@ -885,3 +931,11 @@ class Canvas:
 # #c.save("output.pdf")
 # c.show()
 # #plt.show()
+
+
+# TODO:
+# Fix this code: (Point(0, 1, "a") - Point(0, 1, "b")).width()
+# Fix meet operator >> and << (plus better printing)
+
+# TODO add "thin" to font-manager.py in matplotlib line 81
+# TODO fix height and width
