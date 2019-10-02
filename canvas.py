@@ -704,6 +704,30 @@ class Canvas:
             params_noline = els[i][1].copy()
             params_noline['linestyle'] = 'None'
             self.add_marker(pt1+(pt2-pt1)/2, **params_noline)
+    @pns.accepts(pns.Self, pns.List(pns.Or(pns.Tuple(pns.String, pns.String),
+                                           pns.Tuple(pns.String, pns.String, Metric))))
+    @pns.requires("all(l[1] in self.axes.keys() for l in labs)")
+    def add_figure_labels(self, labs):
+        """Add letter labels to axes.
+
+        `labs` should be a list of tuples of length 2 or 3.  The first
+        element of each tuple is a string of the label text, most
+        commonly a single lowercase letter.  The second element of the
+        tuple is the name of an axis on the canvas.  The optional
+        final element may be either a point (to specify manual
+        positioning) or a vector (to specify an offset from the
+        default position).
+        """
+
+        for l in labs:
+            offset = Vector(-.15, .12, "absolute")
+            loc = Point(0, 1, "axis_"+l[1])
+            if len(l) == 3:
+                if isinstance(l[2], Vector):
+                    offset += l[2]
+                elif isinstance(l[2], Point):
+                    offset = l[2]
+            self.add_text(l[0], loc+offset, weight="heavy", size=12)
     def fix_fonts(self):
         """Convert all text to the desired font.
 
@@ -711,7 +735,6 @@ class Canvas:
         This must be called before displaying or saving the Canvas.
         Usually this is called automatically, but can be called
         manually as well.
-
         """
         fprops = self._get_font()
         for ax in self.figure.axes:
