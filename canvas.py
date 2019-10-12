@@ -671,7 +671,8 @@ class Canvas:
         bb = t.get_extents().inverse_transformed(self.figure.transFigure)
         Msize = Point(bb.width, bb.height)
         print(Msize)
-        self.add_unit("Msize", Vector(bb.width, bb.height, "figure"))
+        if self.is_valid_identifier("Msize"):
+            self.add_unit("Msize", Vector(bb.width, bb.height, "figure"))
         # All params are in units of M width or height
         padding_top = Height(1.5, "Msize") # Space on top of figure
         padding_sep = Width(1.2, "Msize") # Separation between legend line and text
@@ -910,10 +911,12 @@ class Canvas:
             imheight = img.size[1]
         if width is None:
             height = self.convert_to_figure_length(height)
-            width = Width(height.l * (imwidth/imheight), "figure")
+            width = Width(height.y * (self.size[1]/self.size[0]) * (imwidth/imheight), "figure")
+            print("width is", width*self.size[0], height*self.size[1])
         elif height is None:
             width = self.convert_to_figure_length(width)
-            height = Height(width.l * (imheight/imwidth), "figure")
+            height = Height(width.x * (self.size[0]/self.size[1]) * (imheight/imwidth), "figure")
+            print("Height is", height*self.size[1], width*self.size[0])
         else:
             height = self.convert_to_figure_length(height)
             width = self.convert_to_figure_length(width)
