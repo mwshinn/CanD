@@ -338,13 +338,10 @@ class Canvas:
     to make layouts and fonts trivial.
 
     """
-    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.Number, pns.String)
+    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String, pns.Number, pns.String)
     @pns.paranoidconfig(unit_test=False)
-    def __init__(self, size_x, size_y, fontsize=12, font="Helvetica Neue LT Std"):
-        self.figure = plt.figure(figsize=(size_x, size_y))
-        self.size = (size_x, size_y) # Size of the figure in inches
+    def __init__(self, size_x, size_y, unit="inches", fontsize=12, font="Helvetica Neue LT Std"):
         self.axes = dict()
-        self.units = dict()
         self.default_unit = "figure"
         self.fontsize = fontsize
         self.font = font
@@ -352,6 +349,24 @@ class Canvas:
         self.tmpfiles = []
         atexit.register(self._cleanup)
         self.localRc = {}
+        # Create default units.  Dictionary of tuples indexed by unit
+        # name.  First two elements are x and y scale (with respect to
+        # inches) and the last is the origin of the coordinate system.
+        self.units = dict()
+        self.units["in"] = (1/size_x, 1/size_y, Point(0, 0, "figure"))
+        self.units["inches"] = self.units["in"]
+        self.units["cm"] = (1/2.54/size_x, 1/2.54/size_y, Point(0, 0, "figure"))
+        self.units["centimeter"] = self.units["cm"]
+        self.units["centimetre"] = self.units["cm"]
+        self.units["mm"] = (1/254/size_x, 1/254/size_y, Point(0, 0, "figure"))
+        self.units["millimeter"] = self.units["mm"]
+        self.units["millimetre"] = self.units["mm"]
+        self.units["pt"] = (1/72/size_x, 1/72/size_y, Point(0, 0, "figure"))
+        self.units["point"] = self.units["pt"]
+        # Create matplotlib figure object
+        figsize=(size_x * size_x * self.units[unit][0], size_y * size_y * self.units[unit][1])
+        self.figure = plt.figure(figsize=figsize)
+        self.size = figsize # Size of the figure in inches
     def _cleanup(self):
         for f in self.tmpfiles:
             os.remove(f)
@@ -855,7 +870,7 @@ class Canvas:
             self.figure.savefig(filename, dpi=dpi, *args, **kwargs)
         if filetype == "png":
             with PIL.Image.open(filename) as img:
-                img.convert('RGBA')
+                img = img.convert('RGBA')
                 for image in self.images:
                     if image[0].endswith(".pdf"): # Convert pdf to png first
                         pdf = mupdf.open(image[0])
@@ -866,7 +881,7 @@ class Canvas:
                     else:
                         imgpath = image[0]
                     with PIL.Image.open(imgpath) as subimg:
-                        subimg.convert('RGBA')
+                        subimg = subimg.convert('RGBA')
                         imwidth = img.size[0]
                         imheight = img.size[1]
                         pos_ll = image[1]
