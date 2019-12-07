@@ -836,20 +836,23 @@ class Canvas:
             y = i // ncols
             if names[i] is not None:
                 self.add_axis(names[i], Point(posx[x][0], posy[y][0], "figure"), Point(posx[x][1], posy[y][1], "figure"))
-    @pns.accepts(pns.Self, pns.String)
-    def save(self, filename, *args, **kwargs):
+    @pns.accepts(pns.Self, pns.String, pns.Maybe(pns.Natural1))
+    def save(self, filename, dpi=None, *args, **kwargs):
         """Save the Canvas to a png or pdf file.
 
-        The filename is specified by the string `filename`.  Any
-        additional arguments or keyword arguments are passed to the
-        "savefig" function in matplotlib.
-
+        The filename is specified by the string `filename`.
+        Optionally, when `filename` ends in .png, the `dpi` argument
+        may specify the dots per inch (dpi) of the output .png file,
+        where larger numbers indicate a higher resolution and larger
+        file size.  Any additional arguments or keyword arguments are
+        passed to the "savefig" function in matplotlib.
         """
         filetypes = ['png', 'pdf']
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
+        assert (dpi is None) or filename.endswith(".png"), "DPI argument only supported for png files"
         self.fix_fonts()
         with plt.rc_context(rc=self.localRc):
-            self.figure.savefig(filename, *args, **kwargs)
+            self.figure.savefig(filename, dpi=dpi, *args, **kwargs)
         if filetype == "png":
             with PIL.Image.open(filename) as img:
                 img.convert('RGBA')
@@ -858,7 +861,8 @@ class Canvas:
                         pdf = mupdf.open(image[0])
                         page = pdf[0]
                         imgpath = tempfile.mkstemp('.png')[1]
-                        page.getPixmap(alpha=True).writeImage(imgpath)
+                        zoom = int(np.ceil(dpi/72)) if dpi else 1
+                        page.getPixmap(alpha=True, matrix=mupdf.Matrix(zoom, zoom)).writeImage(imgpath)
                     else:
                         imgpath = image[0]
                     with PIL.Image.open(imgpath) as subimg:
@@ -898,7 +902,7 @@ class Canvas:
             pdf.saveIncr()
             pdf.close()
     def add_image(self, filename, pos, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
-        """Add a png image to the Canvas.
+        """Add a png or pdf image to the Canvas.
 
         Insert a .png or .pdf file overlaid on the Canvas.  The string
         `filename` is the filename of the image, the Point `pos` is
