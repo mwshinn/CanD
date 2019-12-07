@@ -854,7 +854,14 @@ class Canvas:
             with PIL.Image.open(filename) as img:
                 img.convert('RGBA')
                 for image in self.images:
-                    with PIL.Image.open(image[0]) as subimg:
+                    if image[0].endswith(".pdf"): # Convert pdf to png first
+                        pdf = mupdf.open(image[0])
+                        page = pdf[0]
+                        imgpath = tempfile.mkstemp('.png')[1]
+                        page.getPixmap(alpha=True).writeImage(imgpath)
+                    else:
+                        imgpath = image[0]
+                    with PIL.Image.open(imgpath) as subimg:
                         subimg.convert('RGBA')
                         imwidth = img.size[0]
                         imheight = img.size[1]
@@ -883,7 +890,11 @@ class Canvas:
                 #imagepdf_bytes = imagedoc.convertToPDF()
                 #imagepdf = mupdf.open("pdf", imagepdf_bytes)
                 #page.showPDFpage(rect, imagepdf)
-                page.insertImage(rect, filename=image[0], keep_proportion=False)
+                if image[0].endswith(".pdf"):
+                    toinsert = mupdf.open(image[0])
+                    page.showPDFpage(rect, src=toinsert, keep_proportion=False)
+                else:
+                    page.insertImage(rect, filename=image[0], keep_proportion=False)
             pdf.saveIncr()
             pdf.close()
     def add_image(self, filename, pos, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
@@ -906,9 +917,15 @@ class Canvas:
         """
         pos_ll = self.convert_to_figure_coord(pos)
         assert height is not None or width is not None, "Either height or width must be given"
-        with PIL.Image.open(filename) as img:
-            imwidth = img.size[0]
-            imheight = img.size[1]
+        if filename.endswith(".pdf"):
+            pdf = mupdf.open(filename)
+            page = pdf[0]
+            imwidth = page.bound().width
+            imheight = page.bound().height
+        else:
+            with PIL.Image.open(filename) as img:
+                imwidth = img.size[0]
+                imheight = img.size[1]
         if width is None:
             height = self.convert_to_figure_length(height)
             width = Width(height.y * (self.size[1]/self.size[0]) * (imwidth/imheight), "figure")
@@ -938,7 +955,7 @@ class Canvas:
             pos_ur -= shift
             pos_ll -= shift
         assert 0 <= pos_ll.x and 0 <= pos_ll.y and pos_ur.x <= 1 and pos_ur.y <= 1, "Coordinates must not go off the screen"
-        filetypes = ["png", "jpg", "jpeg", "gif"]
+        filetypes = ["png", "jpg", "jpeg", "gif", "pdf"]
         assert any(ft for ft in filetypes if filename.endswith("."+ft))
         self.images.append((filename, pos_ll, pos_ur))
     def show(self):
