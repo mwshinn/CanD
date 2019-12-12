@@ -781,10 +781,10 @@ class Canvas:
             base = frm+i*(figsize+spacing)
             pos.append((base, base+figsize))
         return pos
-    @pns.accepts(pns.Self, pns.List(pns.Maybe(pns.String)), pns.Natural1, Point, Point, pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector))
+    @pns.accepts(pns.Self, pns.List(pns.Maybe(pns.String)), pns.Natural1, Point, Point, pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(Vector), pns.Maybe(pns.String))
     @pns.requires("int(spacing_x is not None) + int(size_x is not None) + int(spacing is not None) + int(size is not None) == 1") # Exactly one of spacing_x, size_x, spacing, or size must be specified
     @pns.requires("int(spacing_y is not None) + int(size_y is not None) + int(spacing is not None) + int(size is not None) == 1") # Exactly one of spacing_y, size_y, spacing, or size must be specified
-    def add_grid(self, names, nrows, pos_ll, pos_ur, spacing_x=None, spacing_y=None, spacing=None, size_x=None, size_y=None, size=None):
+    def add_grid(self, names, nrows, pos_ll, pos_ur, spacing_x=None, spacing_y=None, spacing=None, size_x=None, size_y=None, size=None, unitname=None):
         """Create a grid of axes.
 
         Axes are specified by the `names` argument, a
@@ -812,6 +812,11 @@ class Canvas:
         is possible to mix these styles by specifying `spacing_x` and
         `size_y` or vice versa.
 
+        Optionally, `unitname` may specify a name for relative units
+        based on the grid as a whole, i.e. where the origin is located
+        at the bottom left corner of the bottom left figure in the
+        grid, and (1,1) is located at the upper right corner of the
+        upper right grid.
         """
         if spacing is not None:
             spacing_x = spacing.width()
@@ -851,6 +856,10 @@ class Canvas:
             y = i // ncols
             if names[i] is not None:
                 self.add_axis(names[i], Point(posx[x][0], posy[y][0], "figure"), Point(posx[x][1], posy[y][1], "figure"))
+        if unitname is not None:
+            assert self.is_valid_identifier(unitname), "Invalid axis name"
+            self.add_unit(unitname, (pt_ur-pt_ll), pt_ll)
+
     @pns.accepts(pns.Self, pns.String, pns.Maybe(pns.Natural1))
     def save(self, filename, dpi=None, *args, **kwargs):
         """Save the Canvas to a png or pdf file.
@@ -916,7 +925,7 @@ class Canvas:
                     page.insertImage(rect, filename=image[0], keep_proportion=False)
             pdf.saveIncr()
             pdf.close()
-    def add_image(self, filename, pos, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
+    def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
         """Add a png or pdf image to the Canvas.
 
         Insert a .png or .pdf file overlaid on the Canvas.  The string
@@ -933,6 +942,10 @@ class Canvas:
         different libraries, there may be slight differences in output
         depending on output format.
 
+        Optionally, `unitname` may specify a unit for the image,
+        i.e. the origin is located at the bototm left corner of the
+        image, and (1,1) is located at the upper right corner of the
+        image.
         """
         pos_ll = self.convert_to_figure_coord(pos)
         assert height is not None or width is not None, "Either height or width must be given"
@@ -977,6 +990,9 @@ class Canvas:
         filetypes = ["png", "jpg", "jpeg", "gif", "pdf"]
         assert any(ft for ft in filetypes if filename.endswith("."+ft))
         self.images.append((filename, pos_ll, pos_ur))
+        if unitname is not None:
+            assert self.is_valid_identifier(unitname), "Invalid axis name"
+            self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
     def show(self):
         """Display the Canvas in a new window (non-blocking)."""
         tmp = tempfile.mkstemp('.png')[1]

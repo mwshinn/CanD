@@ -86,8 +86,8 @@ for i in [7, 8, 5]:
 
 
 # Suppose we also want to include a small image of a sun in the upper
-# right corner.  If the image is saved in .png format, it can be
-# easily added to the figure.
+# right corner.  If the image is saved in .png or .pdf format, it can
+# be easily added to the figure.
 #
 # There are a few different options for specifying the position of the
 # image.  As with an axis, we could specify both the position of the
