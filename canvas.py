@@ -358,7 +358,7 @@ class Canvas:
         self.units["cm"] = (1/2.54/size_x, 1/2.54/size_y, Point(0, 0, "figure"))
         self.units["centimeter"] = self.units["cm"]
         self.units["centimetre"] = self.units["cm"]
-        self.units["mm"] = (1/254/size_x, 1/254/size_y, Point(0, 0, "figure"))
+        self.units["mm"] = (1/25.4/size_x, 1/25.4/size_y, Point(0, 0, "figure"))
         self.units["millimeter"] = self.units["mm"]
         self.units["millimetre"] = self.units["mm"]
         self.units["pt"] = (1/72/size_x, 1/72/size_y, Point(0, 0, "figure"))
