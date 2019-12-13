@@ -352,19 +352,36 @@ class Canvas:
         # Create default units.  Dictionary of tuples indexed by unit
         # name.  First two elements are x and y scale (with respect to
         # inches) and the last is the origin of the coordinate system.
+        if unit in ["inches", "in", "inch"]:
+            size_x_inches = size_x
+            size_y_inches = size_y
+        elif unit in ["cm", "centimeter", "centimeters", "centimetre", "centimetres"]:
+            size_x_inches = size_x/2.54
+            size_y_inches = size_y/2.54
+        elif unit in ["mm", "millimeter", "millimeters", "millimetre", "millimetres"]:
+            size_x_inches = size_x/25.4
+            size_y_inches = size_y/25.4
+        else:
+            raise ValueError("Invalid unit")
         self.units = dict()
-        self.units["in"] = (1/size_x, 1/size_y, Point(0, 0, "figure"))
+        self.add_unit("in", Vector(1/size_x_inches, 1/size_y_inches, "figure"))
+        self.units["inch"] = self.units["in"]
         self.units["inches"] = self.units["in"]
-        self.units["cm"] = (1/2.54/size_x, 1/2.54/size_y, Point(0, 0, "figure"))
+        self.add_unit("cm", Vector(1/2.54, 1/2.54, "inches"))
+        self.units["centimeters"] = self.units["cm"]
         self.units["centimeter"] = self.units["cm"]
+        self.units["centimetres"] = self.units["cm"]
         self.units["centimetre"] = self.units["cm"]
-        self.units["mm"] = (1/25.4/size_x, 1/25.4/size_y, Point(0, 0, "figure"))
+        self.add_unit("mm", Vector(.1, .1, "cm"))
         self.units["millimeter"] = self.units["mm"]
+        self.units["millimeters"] = self.units["mm"]
         self.units["millimetre"] = self.units["mm"]
-        self.units["pt"] = (1/72/size_x, 1/72/size_y, Point(0, 0, "figure"))
+        self.units["millimetres"] = self.units["mm"]
+        self.add_unit("pt", Vector(1/72, 1/72, "inches"))
         self.units["point"] = self.units["pt"]
+        self.units["points"] = self.units["pt"]
         # Create matplotlib figure object
-        figsize=(size_x * size_x * self.units[unit][0], size_y * size_y * self.units[unit][1])
+        figsize = (size_x_inches, size_y_inches)
         self.figure = plt.figure(figsize=figsize)
         self.size = figsize # Size of the figure in inches
     def _cleanup(self):
