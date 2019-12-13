@@ -54,3 +54,18 @@ Canvas does not provide::
 
 Canvas is currently pre-alpha software.  Examples and documentation
 will be available eventually.
+
+Installation
+============
+
+Canvas depends on:
+
+- numpy
+- matplotlib
+- seaborn
+- paranoid-scientist (version 0.2.1 or greater)
+- PyMuPDF
+- Pillow
+
+Currently it can be installed by placing canvas.py into the same
+directory as your plotting script.
