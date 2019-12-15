@@ -642,17 +642,17 @@ class Canvas:
         "wide", depending on the font.  All other keyword arguments
         are passed to matplotlib.pyplot.text.  Notably, the
         `horizontalalignment` and `verticalalignment` arguments are
-        often useful.
-
+        often useful.  (`ha` and `va` are also accepted as aliases for
+        matplotlib compatibility).
         """
         if size is None:
             size = self.fontsize
         print("Adding text", text)
         kwargs = kwargs.copy()
         if 'horizontalalignment' not in kwargs:
-            kwargs['horizontalalignment'] = 'center'
+            kwargs['horizontalalignment'] = kwargs['ha'] if 'ha' in kwargs else 'center'
         if 'verticalalignment' not in kwargs:
-            kwargs['verticalalignment'] = 'center'
+            kwargs['verticalalignment'] = kwargs['va'] if 'va' in kwargs else 'center'
         pt = self.convert_to_figure_coord(pos)
         # Check valid font names with plt.matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
@@ -942,7 +942,7 @@ class Canvas:
                     page.insertImage(rect, filename=image[0], keep_proportion=False)
             pdf.saveIncr()
             pdf.close()
-    def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment="center", verticalalignment="center"):
+    def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment=None, verticalalignment=None, ha=None, va=None):
         """Add a png or pdf image to the Canvas.
 
         Insert a .png or .pdf file overlaid on the Canvas.  The string
@@ -950,10 +950,11 @@ class Canvas:
         the location of the image, aligned according to
         `horizontalalignment` (may be "left", "center", or "right")
         and `verticalalignment` (may be "top", "center", or "bottom").
-        Either a Height `height` or a Width `width` must be specified.
-        The image will be scaled in the unspecified direction to
-        maintain the aspect ratio.  If both `height` and `width` are
-        specified, then the image's aspect ratio will be ignored.
+        For compatibility, `ha` and `va` may be used instead.  Either
+        a Height `height` or a Width `width` must be specified.  The
+        image will be scaled in the unspecified direction to maintain
+        the aspect ratio.  If both `height` and `width` are specified,
+        then the image's aspect ratio will be ignored.
 
         Note: As the conversion processes for png and pdf export use
         different libraries, there may be slight differences in output
@@ -964,6 +965,10 @@ class Canvas:
         image, and (1,1) is located at the upper right corner of the
         image.
         """
+        if horizontalalignment is None:
+            horizontalalignment = ha if ha is not None else "center"
+        if verticalalignment is None:
+            verticalalignment = va if va is not None else "center"
         pos_ll = self.convert_to_figure_coord(pos)
         assert height is not None or width is not None, "Either height or width must be given"
         if filename.endswith(".pdf"):
@@ -976,16 +981,16 @@ class Canvas:
                 imwidth = img.size[0]
                 imheight = img.size[1]
         if width is None:
-            height = self.convert_to_figure_length(height)
+            height = self.convert_to_figure_length(height.height())
             width = Width(height.y * (self.size[1]/self.size[0]) * (imwidth/imheight), "figure")
             print("width is", width*self.size[0], height*self.size[1])
         elif height is None:
-            width = self.convert_to_figure_length(width)
+            width = self.convert_to_figure_length(width.width())
             height = Height(width.x * (self.size[0]/self.size[1]) * (imheight/imwidth), "figure")
             print("Height is", height*self.size[1], width*self.size[0])
         else:
-            height = self.convert_to_figure_length(height)
-            width = self.convert_to_figure_length(width)
+            height = self.convert_to_figure_length(height.height())
+            width = self.convert_to_figure_length(width.width())
         pos_ur = pos_ll + height + width
         if horizontalalignment == "center":
             shift = (pos_ur-pos_ll).width()/2
