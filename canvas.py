@@ -91,7 +91,7 @@ class Point:
             return BinopPoint(self, '<<', other)
     def __or__(self, other):
         if not isinstance(other, Point):
-            raise ValueError(f"Invalid meet << operation between {repr(self)} and {repr(other)}.")
+            raise ValueError(f"Invalid mean | operation between {repr(self)} and {repr(other)}.")
         if self.coordinate == other.coordinate:
             return Point((self.x+other.x)/2, (self.y+other.y)/2, self.coordinate)
         else:
