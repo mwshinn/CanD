@@ -326,12 +326,13 @@ class Canvas:
     to make layouts and fonts trivial.
 
     """
-    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String, pns.Number, pns.String)
+    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String, pns.String, pns.Number, pns.Maybe(pns.Number))
     @pns.paranoidconfig(unit_test=False)
-    def __init__(self, size_x, size_y, unit="inches", fontsize=12, font="Helvetica Neue LT Std"):
+    def __init__(self, size_x, size_y, unit="inches", font="Helvetica Neue LT Std", fontsize=8, fontsize_ticks=None):
         self.axes = dict()
         self.default_unit = "figure"
         self.fontsize = fontsize
+        self.fontsize_ticks = fontsize_ticks if fontsize_ticks is not None else fontsize
         self.font = font
         self.images = []
         self.tmpfiles = []
@@ -758,11 +759,12 @@ class Canvas:
         manually as well.
         """
         fprops = self._get_font()
+        fprops_ticks = self._get_font(size=self.fontsize_ticks)
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():
-                label.set_fontproperties(fprops)
+                label.set_fontproperties(fprops_ticks)
             for label in ax.get_yticklabels():
-                label.set_fontproperties(fprops)
+                label.set_fontproperties(fprops_ticks)
             ax.set_xlabel(ax.get_xlabel(), fontproperties=fprops)
             ax.set_ylabel(ax.get_ylabel(), fontproperties=fprops)
             ax.set_title(ax.get_title(), fontproperties=fprops)
