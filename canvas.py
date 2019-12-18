@@ -172,6 +172,10 @@ class Vector:
     def height(self):
         """Returns a Height object representing the y component of the Vector."""
         return Height(self.y, self.coordinate)
+    def flipx(self):
+        return Vector(-self.x, self.y, self.coordinate)
+    def flipy(self):
+        return Vector(self.x, -self.y, self.coordinate)
     def __eq__(self, other):
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
     def __iter__(self):
@@ -298,6 +302,10 @@ class BinopVector(MetaBinop,Vector):
     def height(self):
         """Returns a BionpVector object representing the y component of the Vector."""
         return ((Point(0, 0, "figure") + self) << Point(0, 0, "figure")) - Point(0, 0, "figure")
+    def flipx(self):
+        return (-self) >> self
+    def flipy(self):
+        return self >> (-self)
     @classmethod
     def _generate(cls):
         yield cls(Point(0, 1), '+', Point(3, 2, "absolute"))
