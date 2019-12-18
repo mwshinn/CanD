@@ -86,12 +86,7 @@ class Point:
         else:
             return BinopPoint(self, '>>', other)
     def __lshift__(self, other):
-        if not isinstance(other, Point):
-            raise ValueError(f"Invalid meet << operation between {repr(self)} and {repr(other)}.")
-        if self.coordinate == other.coordinate:
-            return Point(other.x, self.y, self.coordinate)
-        else:
-            return BinopPoint(self, '<<', other)
+        return other >> self
     def __or__(self, other):
         if not isinstance(other, Point):
             raise ValueError(f"Invalid mean | operation between {repr(self)} and {repr(other)}.")
@@ -169,6 +164,8 @@ class Vector:
             return Vector(self.x, other.y, self.coordinate)
         else:
             return BinopVector(self, '>>', other)
+    def __lshift__(self, other):
+        return other >> self
     def width(self):
         """Returns a Width object representing the x component of the Vector."""
         return Width(self.x, self.coordinate)
@@ -249,10 +246,7 @@ class BinopPoint(MetaBinop,Point):
         elif isinstance(rhs, Point):
             return BinopVector(self, '-', rhs)
     def __lshift__(self, rhs):
-        if isinstance(rhs, Point):
-            return BinopPoint(self, '<<', rhs)
-        else:
-            raise ValueError(f"Invalid meet << between {repr(self)} and {repr(other)}.")
+        return rhs >> self
     def __rshift__(self, rhs):
         if isinstance(rhs, Point):
             return BinopPoint(self, '>>', rhs)
@@ -295,6 +289,8 @@ class BinopVector(MetaBinop,Vector):
             return BinopVector(self, '>>', rhs)
         else:
             raise ValueError(f"Invalid meet >> between {repr(self)} and {repr(other)}.")
+    def __lshift__(self, rhs):
+        return rhs >> self
     def width(self):
         """Returns a BinopVector object representing the x component of the Vector."""
         # Handle cases where we use a scalar instead of a vector
