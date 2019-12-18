@@ -41,12 +41,15 @@ class Point:
     produce the vector connecting the two points.
 
     """
-
-    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String)
-    def __init__(self, x, y, coordinate="default"):
-        self.x = x
-        self.y = y
-        self.coordinate = coordinate
+    def __new__(cls, x, y, coordinate="default"):
+        if isinstance(coordinate, tuple):
+            return Point(x, 0, coordinate[0]) >> Point(0, y, coordinate[1])
+        else:
+            obj = object.__new__(cls)
+            obj.x = x
+            obj.y = y
+            obj.coordinate = coordinate
+            return obj
     def __repr__(self):
         return f'{self.__class__.__name__}({self.x}, {self.y}, "{self.coordinate}")'
     @pns.accepts(pns.Self, Metric)
@@ -210,11 +213,13 @@ class MetaBinop:
                 '>>': lambda lhs,rhs : lhs >> rhs,
                 '<<': lambda lhs,rhs : lhs << rhs,
                 '|': lambda lhs,rhs : lhs | rhs}
-    @pns.accepts(pns.Self, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '<<', '|']), pns.Or(Metric, pns.Number))
-    def __init__(self, lhs, op, rhs):
-        self.lhs = lhs
-        self.rhs = rhs
-        self.op = op
+    @pns.accepts(pns.Unchecked, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '<<', '|']), pns.Or(Metric, pns.Number))
+    def __new__(cls, lhs, op, rhs):
+        obj = object.__new__(cls)
+        obj.lhs = lhs
+        obj.op = op
+        obj.rhs = rhs
+        return obj
     def __repr__(self):
         if self.op == '-' and isinstance(self.rhs, MetaBinop):
             return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
@@ -223,7 +228,10 @@ class MetaBinop:
         elif self.op == '*' and isinstance(self.rhs, MetaBinop):
             return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
         elif self.op in ['<<', '>>']:
-            return f'(({repr(self.lhs)}) {self.op} ({repr(self.rhs)}))'
+            if (not isinstance(self.lhs, MetaBinop)) and (not isinstance(self.rhs, MetaBinop)):
+                return f'Point({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
+            else:
+                return f'(({repr(self.lhs)}) {self.op} ({repr(self.rhs)}))'
         else:
             return f'{repr(self.lhs)} {self.op} {repr(self.rhs)}'
     def __eq__(self, other):
