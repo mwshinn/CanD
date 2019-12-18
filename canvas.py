@@ -200,9 +200,8 @@ class MetaBinop:
                 '*': lambda lhs,rhs : lhs * rhs,
                 '/': lambda lhs,rhs : lhs / rhs,
                 '>>': lambda lhs,rhs : lhs >> rhs,
-                '<<': lambda lhs,rhs : lhs << rhs,
                 '|': lambda lhs,rhs : lhs | rhs}
-    @pns.accepts(pns.Unchecked, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '<<', '|']), pns.Or(Metric, pns.Number))
+    @pns.accepts(pns.Unchecked, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '|']), pns.Or(Metric, pns.Number))
     def __new__(cls, lhs, op, rhs):
         obj = object.__new__(cls)
         obj.lhs = lhs
@@ -210,21 +209,18 @@ class MetaBinop:
         obj.rhs = rhs
         return obj
     def __repr__(self):
-        if self.op == '-' and isinstance(self.rhs, MetaBinop):
-            return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
-        elif self.op in ['*', '/'] and isinstance(self.lhs, MetaBinop):
-            return f'({repr(self.lhs)}) {self.op} {repr(self.rhs)}'
-        elif self.op == '*' and isinstance(self.rhs, MetaBinop):
-            return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
-        elif self.op in ['<<', '>>']:
-            if isinstance(self, BinopPoint) and (not isinstance(self.lhs, BinopPoint)) and (not isinstance(self.rhs, BinopPoint)):
-                return f'Point({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
-            elif isinstance(self, BinopVector) and (not isinstance(self.lhs, BinopVector)) and (not isinstance(self.rhs, BinopVector)):
-                return f'Vector({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
-            else:
-                return f'(({repr(self.lhs)}) {self.op} ({repr(self.rhs)}))'
-        else:
-            return f'{repr(self.lhs)} {self.op} {repr(self.rhs)}'
+        # Make it look like a MetaBinop with two Points or two Vectors
+        # is a point with the tuple-based naming scheme
+        if self.op == '>>' and (not isinstance(self.lhs, MetaBinop)) and (not isinstance(self.rhs, MetaBinop)):
+            if isinstance(self, BinopPoint):
+                classname = "Point"
+            elif isinstance(self, BinopVector):
+                classname = "Vector"
+            return f'{classname}({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
+        # Add parens if the point is a binop
+        lhstext = f'({repr(self.lhs)})' if isinstance(self.lhs, MetaBinop) and self.lhs.op != '>>' else repr(self.lhs)
+        rhstext = f'({repr(self.rhs)})' if isinstance(self.rhs, MetaBinop) and self.rhs.op != '>>' else repr(self.rhs)
+        return f'{lhstext} {self.op} {rhstext}'
     def __eq__(self, other):
         return (self.lhs == other.lhs) and (self.op == other.op) and (self.rhs == other.rhs)
 

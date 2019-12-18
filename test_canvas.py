@@ -23,9 +23,6 @@ for v in [(0, 0), (1, 0), (0, 1), (1.1, -1.3)]:
     vectors.append(Vector(*v, "figure"))
     vectors.append(Vector(*v, "absolute"))
     vectors.append(Vector(*v, "newunit"))
-for v in [-.4, 0, 1]:
-    vectors.append(Width(v, "default"))
-    vectors.append(Height(v, "newunit"))
 
 for ax in axes:
     points.append(Point(.3, .2, ax))
@@ -39,26 +36,6 @@ for ax in axes:
     points.append(Point(1, 1, ax) | Point(.3, .1, "figure"))
     points.append(Point(.1, -.2, "figure") + (Point(1.1, 2.1, ax) - Point(.3, .6, "absolute"))/2)
     
-def test_width_height_objects():
-    def make_vec(x,y,binop):
-        if binop:
-            return Vector(x,y,"a") + Vector(x, y, "b")
-        else:
-            return Vector(x, y)
-    for binop in [True, False]:
-        assert isinstance(make_vec(1, 0, binop), Width)
-        assert isinstance(make_vec(0, 1, binop), Height)
-        assert isinstance(make_vec(1, 0, binop), Vector)
-        assert isinstance(make_vec(0, 1, binop), Vector)
-        assert not isinstance(make_vec(0, 0, binop), Width)
-        assert not isinstance(make_vec(0, 0, binop), Height)
-        assert not isinstance(make_vec(1, 2, binop), Width)
-        assert not isinstance(make_vec(1, 2, binop), Height)
-    assert isinstance(Width(3), Vector)
-    assert isinstance(Height(3), Vector)
-    assert isinstance(Width(3, "a")+Width(2, "b"), Vector)
-    assert isinstance(Height(3, "a")+Height(2, "b"), Vector)
-
 def test_width_and_height_methods():
     c = Canvas(5, 5)
     c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
