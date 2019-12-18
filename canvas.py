@@ -124,10 +124,8 @@ class Vector:
 
     """
     def __new__(cls, x, y, coordinate="default"):
-        if y == 0 and cls == Vector and x != 0:
-            return Width(x, coordinate)
-        elif x == 0 and cls == Vector and y != 0:
-            return Height(y, coordinate)
+        if isinstance(coordinate, tuple):
+            return Vector(x, 0, coordinate[0]) >> Vector(0, y, coordinate[1])
         else:
             obj = object.__new__(cls)
             obj.x = x
@@ -164,6 +162,13 @@ class Vector:
     @pns.requires("other != 0")
     def __truediv__(self, other):
         return Vector(self.x / other, self.y / other, self.coordinate)
+    def __rshift__(self, other):
+        if not isinstance(other, Vector):
+            raise ValueError(f"Invalid meet >> operation between {repr(self)} and {repr(other)}.")
+        if self.coordinate == other.coordinate:
+            return Vector(self.x, other.y, self.coordinate)
+        else:
+            return BinopVector(self, '>>', other)
     def width(self):
         """Returns a Width object representing the x component of the Vector."""
         return Width(self.x, self.coordinate)
@@ -180,28 +185,11 @@ class Vector:
         yield Height(.3)
         yield Width(.5)
 
-class Width(Vector):
-    """A Vector with only an x component."""
-    def __new__(cls, x, coordinate="default"):
-        obj = object.__new__(cls)
-        obj.x = x
-        obj.y = 0
-        obj.coordinate = coordinate
-        return obj
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.x}, "{self.coordinate}")'
+def Width(x, coordinate="default"):
+    return Vector(x, 0, coordinate)
 
-class Height(Vector):
-    """A Vector with only a y component."""
-    def __new__(cls, y, coordinate="default"):
-        obj = object.__new__(cls)
-        obj.x = 0
-        obj.y = y
-        obj.coordinate = coordinate
-        return obj
-    def __repr__(self):
-        return f'{self.__class__.__name__}({self.y}, "{self.coordinate}")'
-
+def Height(y, coordinate="default"):
+    return Vector(0, y, coordinate)
 
 @pns.paranoidclass
 class MetaBinop:
@@ -228,8 +216,10 @@ class MetaBinop:
         elif self.op == '*' and isinstance(self.rhs, MetaBinop):
             return f'{repr(self.lhs)} {self.op} ({repr(self.rhs)})'
         elif self.op in ['<<', '>>']:
-            if (not isinstance(self.lhs, MetaBinop)) and (not isinstance(self.rhs, MetaBinop)):
+            if isinstance(self, BinopPoint) and (not isinstance(self.lhs, BinopPoint)) and (not isinstance(self.rhs, BinopPoint)):
                 return f'Point({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
+            elif isinstance(self, BinopVector) and (not isinstance(self.lhs, BinopVector)) and (not isinstance(self.rhs, BinopVector)):
+                return f'Vector({self.lhs.x}, {self.rhs.y}, ({repr(self.lhs.coordinate)}, {repr(self.rhs.coordinate)}))'
             else:
                 return f'(({repr(self.lhs)}) {self.op} ({repr(self.rhs)}))'
         else:
@@ -285,13 +275,6 @@ class BinopVector(MetaBinop,Vector):
     objects which results in a Vector object.
 
     """
-    def __new__(cls, lhs, op, rhs):
-        if cls == BinopVector and isinstance(lhs, Width) and isinstance(rhs, Width):
-            return BinopWidth(lhs, op, rhs)
-        elif cls == BinopVector and isinstance(lhs, Height) and isinstance(rhs, Height):
-            return BinopHeight(lhs, op, rhs)
-        else:
-            return object.__new__(cls)
     @pns.accepts(pns.Self, Metric)
     def __add__(self, rhs):
         if isinstance(rhs, Vector):
@@ -307,25 +290,22 @@ class BinopVector(MetaBinop,Vector):
     @pns.accepts(pns.Self, pns.Number)
     def __truediv__(self, rhs):
         return BinopVector(self, '/', rhs)
+    def __rshift__(self, rhs):
+        if isinstance(rhs, Vector):
+            return BinopVector(self, '>>', rhs)
+        else:
+            raise ValueError(f"Invalid meet >> between {repr(self)} and {repr(other)}.")
     def width(self):
-        """Returns a BinopWidth object representing the x component of the Vector."""
+        """Returns a BinopVector object representing the x component of the Vector."""
         # Handle cases where we use a scalar instead of a vector
         return ((Point(0, 0, "figure") + self) >> Point(0, 0, "figure")) - Point(0, 0, "figure")
     def height(self):
-        """Returns a BionpHeight object representing the y component of the Vector."""
+        """Returns a BionpVector object representing the y component of the Vector."""
         return ((Point(0, 0, "figure") + self) << Point(0, 0, "figure")) - Point(0, 0, "figure")
     @classmethod
     def _generate(cls):
         yield cls(Point(0, 1), '+', Point(3, 2, "absolute"))
         yield cls(Point(-.2, .2), '-', cls(Point(0, -1, "absolute"), '+', Width(2, "otherunit")))
-
-class BinopWidth(BinopVector,Width):
-    """A composite of Width objects, analogous to BinopVector."""
-    pass
-
-class BinopHeight(BinopVector,Height):
-    """A composite of Height objects, analogous to BinopVector."""
-    pass
 
 @pns.paranoidclass
 class Canvas:
