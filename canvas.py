@@ -459,7 +459,7 @@ class Canvas:
         else:
             norm = bounds
         size = self.convert_to_figure_coord(pos_ur - pos_ll)
-        orientation = "horizontal" if size.x > size.y else "vertical"
+        orientation = "horizontal" if size.x*self.size[0] > size.y*self.size[1] else "vertical"
         colorbar = plt.matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
@@ -759,6 +759,7 @@ class Canvas:
         manually as well.
         """
         fprops = self._get_font()
+        fprops_bold = self._get_font(weight="bold")
         fprops_ticks = self._get_font(size=self.fontsize_ticks)
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():
@@ -773,9 +774,8 @@ class Canvas:
                     t.set_fontproperties(fprops)
         # Get Helvetica for math as well
         self.localRc['mathtext.fontset'] = 'custom'
-        # TODO these should refer to bold/it/etc versions of the font
         self.localRc['mathtext.rm'] = fprops.get_fontconfig_pattern()
-        self.localRc['mathtext.bf'] = fprops.get_fontconfig_pattern()
+        self.localRc['mathtext.bf'] = fprops_bold.get_fontconfig_pattern()
         self.localRc['mathtext.it'] = fprops.get_fontconfig_pattern()
         self.localRc['mathtext.cal'] = fprops.get_fontconfig_pattern()
         self.localRc['mathtext.tt'] = fprops.get_fontconfig_pattern()
@@ -1024,5 +1024,4 @@ class Canvas:
 
 
 # TODO:
-# Fix meet operator >> and << (plus better printing)
 # TODO add "thin" to font-manager.py in matplotlib line 81
