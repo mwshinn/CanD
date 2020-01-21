@@ -670,8 +670,8 @@ class Canvas:
         pos = self.convert_to_figure_coord(pos)
         l2d = plt.matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
         self.figure.add_artist(l2d)
-    @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1))
-    def add_legend(self, pos_tl, els, fontsize=None):
+    @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1), Metric, Metric, Metric)
+    def add_legend(self, pos_tl, els, fontsize=None, line_spacing=Height(2.2, "Msize"), sym_width=Width(2.3, "Msize"), padding_sep=Width(1.2, "Msize")):
         """Add a legend without using the matplotlib API.
 
         The top-left corner of the legend should be located at the
@@ -679,8 +679,15 @@ class Canvas:
         representing the elements to include in the legend.  The first
         element of each tuple should be the name of the legend item,
         the second element should be a dictionary of line properties
-        to be passed to the add_line and add_marker functions.
+        to be passed to the add_line and add_marker functions.  To
+        withhold drawing a line and only draw markers, set 'linestyle'
+        to the string 'None'.
 
+        Additional parameters control formatting.  `line_spacing`
+        determines spacing between each line of descriptive text in
+        the legend.  `sym_width` is the width of the symbols (lines
+        and markers). `padding_sep` is the separation between the
+        symbols and the descriptive text.
         """
         if fontsize is None:
             fontsize = self.fontsize
@@ -690,16 +697,11 @@ class Canvas:
         fprops = self._get_font()
         t = plt.matplotlib.textpath.TextPath((0,0), "M", size=fontsize, prop=fprops)
         bb = t.get_extents().inverse_transformed(self.figure.transFigure)
-        Msize = Point(bb.width, bb.height)
-        print(Msize)
         if self.is_valid_identifier("Msize"):
-            self.add_unit("Msize", Vector(bb.width, bb.height, "figure"))
+            self.add_unit("Msize", Vector(self.fontsize, self.fontsize, "point"))
         # All params are in units of M width or height
-        padding_top = Height(1.5, "Msize") # Space on top of figure
-        padding_sep = Width(1.2, "Msize") # Separation between legend line and text
-        padding_left = Width(1.5, "Msize") # Space on left of lines
-        line_spacing = Height(2.2, "Msize") # Number of M heights per line height
-        sym_width = Width(2.3, "Msize") # Width of each legend line (or symbol)
+        padding_top = Height(0, "Msize") # Space on top of figure
+        padding_left = Width(0, "Msize") # Space on left of lines
         # Convert these to an easier coordinate system
         padding_top = self.convert_to_figure_length(padding_top)
         padding_left = self.convert_to_figure_length(padding_left)
@@ -728,7 +730,7 @@ class Canvas:
             self.add_marker(pt1+(pt2-pt1)/2, **params_noline)
     @pns.accepts(pns.Self, pns.List(pns.Or(pns.Tuple(pns.String, pns.String),
                                            pns.Tuple(pns.String, pns.String, Metric))))
-    @pns.requires("all(l[1] in self.axes.keys() for l in labs)")
+    @pns.requires("all((l[1] in self.axes.keys()) or (self.is_unit(l[1])) for l in labs)")
     def add_figure_labels(self, labs):
         """Add letter labels to axes.
 
@@ -743,7 +745,7 @@ class Canvas:
 
         for l in labs:
             offset = Vector(-.15, .12, "absolute")
-            loc = Point(0, 1, "axis_"+l[1])
+            loc = Point(0, 1, "axis_"+l[1] if l[1] in self.axes.keys() else l[1])
             if len(l) == 3:
                 if isinstance(l[2], Vector):
                     offset += l[2]
@@ -1025,3 +1027,4 @@ class Canvas:
 
 # TODO:
 # TODO add "thin" to font-manager.py in matplotlib line 81
+# Jupyter support: https://ipython.readthedocs.io/en/stable/api/generated/IPython.display.html
