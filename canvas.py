@@ -1,7 +1,7 @@
 import paranoid as pns
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+import matplotlib
+import matplotlib.figure
 import PIL
 import fitz as mupdf # PyMuPDF
 import tempfile
@@ -338,6 +338,7 @@ class Canvas:
         self.tmpfiles = []
         atexit.register(self._cleanup)
         self.localRc = {}
+        self.backend = "default"
         # Create default units.  Dictionary of tuples indexed by unit
         # name.  First two elements are x and y scale (with respect to
         # inches) and the last is the origin of the coordinate system.
@@ -371,7 +372,7 @@ class Canvas:
         self.units["points"] = self.units["pt"]
         # Create matplotlib figure object
         figsize = (size_x_inches, size_y_inches)
-        self.figure = plt.figure(figsize=figsize)
+        self.figure = matplotlib.figure.Figure(figsize=figsize)
         self.size = figsize # Size of the figure in inches
     def _cleanup(self):
         for f in self.tmpfiles:
@@ -383,12 +384,29 @@ class Canvas:
         # singleton in matplotlib but it takes forever to construct
         # for some reason.
         if not hasattr(self.__class__, "_fm"):
-            self.__class__._fm = plt.matplotlib.font_manager.FontManager()
-        fp = plt.matplotlib.font_manager.FontProperties(weight=weight, style=style, size=size, family=self.font, stretch=stretch)
+            self.__class__._fm = matplotlib.font_manager.FontManager()
+        fp = matplotlib.font_manager.FontProperties(weight=weight, style=style, size=size, family=self.font, stretch=stretch)
         fontfile = self.__class__._fm.findfont(fp, fallback_to_default=False)
         print(fontfile, stretch, size, style, weight)
-        fprops = plt.matplotlib.font_manager.FontProperties(fname=fontfile, size=size)
+        fprops = matplotlib.font_manager.FontProperties(fname=fontfile, size=size)
         return fprops
+    @pns.accepts(pns.Self, pns.Maybe(pns.String), pns.String)
+    def use_latex(self, preamble=None, engine="pdflatex"):
+        """Use latex to render all text.
+
+        `engine` is the latex engine ("texsystem" in matplotlib lingo)
+        used to render the text.  It can be "pdflatex", "lualatex", or
+        "xelatex".
+
+        Note that this will break math font compatibility.  Because
+        latex is being used to render the fonts, you must import a
+        package that allows latex to render in the desired font.  For
+        example, if `engine` is "pdflatex", to get Helvetica, set
+        preamble=r"\\usepackage[scaled]{helvet}\\usepackage[helvet]{sfmath}".
+        """
+        self.backend = "latex"
+        self.latex_engine = engine
+        self.latex_preamble = preamble
     @pns.accepts(pns.Self, pns.String, Vector, Point)
     @pns.requires('self.is_valid_identifier(name)')
     @pns.ensures('not self.is_valid_identifier(name)')
@@ -444,23 +462,22 @@ class Canvas:
         pt_ur = self.convert_to_figure_coord(pos_ur)
         ax = self.figure.add_axes([pt_ll.x, pt_ll.y, pt_ur.x-pt_ll.x, pt_ur.y-pt_ll.y], label=name)
         self.axes[name] = ax
-        sns.despine(ax=ax)
         return ax
     @pns.accepts(pns.Self, pns.String)
     @pns.ensures("self.is_unit(name)")
     def ax(self, name):
         """Return the axis of name `name`."""
         return self.axes[name]
-    #@pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), plt.matplotlib.colors.Normalize))
+    #@pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), matplotlib.colors.Normalize))
     def add_colorbar(self, name, pos_ll, pos_ur, cmap, bounds, **kwargs):
         ax = self.add_axis(name, pos_ll, pos_ur)
         if isinstance(bounds, tuple):
-            norm = plt.matplotlib.colors.Normalize(vmin=bounds[0], vmax=bounds[1])
+            norm = matplotlib.colors.Normalize(vmin=bounds[0], vmax=bounds[1])
         else:
             norm = bounds
         size = self.convert_to_figure_coord(pos_ur - pos_ll)
         orientation = "horizontal" if size.x*self.size[0] > size.y*self.size[1] else "vertical"
-        colorbar = plt.matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
+        colorbar = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
     @pns.returns(pns.Boolean)
@@ -584,9 +601,8 @@ class Canvas:
             np_points[i] = [pt.x, pt.y]
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
-        poly = plt.matplotlib.patches.Polygon(np_points, closed=False, transform=self.figure.transFigure, **kwargs)
-        self.figure.patches.append(poly)
-        plt.draw()
+        poly = matplotlib.patches.Polygon(np_points, closed=False, transform=self.figure.transFigure, **kwargs)
+        self.figure.add_artist(poly)
     @pns.accepts(pns.Self, Point, Point)
     def add_rect(self, pos_ll, pos_ur, **kwargs):
         """Draw a rectangle.
@@ -620,7 +636,7 @@ class Canvas:
             print("Warning: the 'angle' keyword passed to add_ellipse may give unexpected results.")
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
-        e = plt.matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y, **kwargs)
+        e = matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y, **kwargs)
         self.figure.add_artist(e)
     def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
@@ -636,7 +652,7 @@ class Canvas:
         pt_delta = pt_frm - pt_to
         if "linewidth" in kwargs:
             lw = kwargs['linewidth']
-        arrow = plt.matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.figure.transFigure,
+        arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.figure.transFigure,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
     def add_text(self, text, pos, weight="roman", size=None, stretch="normal", style="normal", **kwargs):
@@ -663,12 +679,11 @@ class Canvas:
         if 'verticalalignment' not in kwargs:
             kwargs['verticalalignment'] = kwargs['va'] if 'va' in kwargs else 'center'
         pt = self.convert_to_figure_coord(pos)
-        # Check valid font names with plt.matplotlib.font_manager.FontManager().findfont(name)
+        # Check valid font names with matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
         fprops = self._get_font(weight=weight, size=size, stretch=stretch, style=style)
         self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure,
                          fontproperties=fprops, fontsize=size, **kwargs)
-        plt.draw()
     def add_line(self, frm, to, **kwargs):
         """Draw a line.
 
@@ -678,7 +693,7 @@ class Canvas:
         """
         frm = self.convert_to_figure_coord(frm)
         to = self.convert_to_figure_coord(to)
-        l2d = plt.matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y], **kwargs)
+        l2d = matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y], **kwargs)
         self.figure.add_artist(l2d)
     def add_marker(self, pos, **kwargs):
         """Draw a matplotlib marker.
@@ -688,7 +703,7 @@ class Canvas:
 
         """
         pos = self.convert_to_figure_coord(pos)
-        l2d = plt.matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
+        l2d = matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
         self.figure.add_artist(l2d)
     @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1), Metric, Metric, Metric)
     def add_legend(self, pos_tl, els, fontsize=None, line_spacing=Height(2.2, "Msize"), sym_width=Width(2.3, "Msize"), padding_sep=Width(1.2, "Msize")):
@@ -715,7 +730,7 @@ class Canvas:
         assert len(els) >= 1
         # Get the text height
         fprops = self._get_font()
-        t = plt.matplotlib.textpath.TextPath((0,0), "M", size=fontsize, prop=fprops)
+        t = matplotlib.textpath.TextPath((0,0), "M", size=fontsize, prop=fprops)
         bb = t.get_extents().inverse_transformed(self.figure.transFigure)
         if self.is_valid_identifier("Msize"):
             self.add_unit("Msize", Vector(self.fontsize, self.fontsize, "point"))
@@ -782,6 +797,7 @@ class Canvas:
         """
         fprops = self._get_font()
         fprops_bold = self._get_font(weight="bold")
+        fprops_it = self._get_font(style="italic")
         fprops_ticks = self._get_font(size=self.fontsize_ticks)
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():
@@ -797,11 +813,23 @@ class Canvas:
         # Get Helvetica for math as well
         self.localRc['mathtext.fontset'] = 'custom'
         self.localRc['mathtext.rm'] = fprops.get_fontconfig_pattern()
+        self.localRc['mathtext.default'] = "rm"
         self.localRc['mathtext.bf'] = fprops_bold.get_fontconfig_pattern()
-        self.localRc['mathtext.it'] = fprops.get_fontconfig_pattern()
+        self.localRc['mathtext.it'] = fprops_it.get_fontconfig_pattern()
         self.localRc['mathtext.cal'] = fprops.get_fontconfig_pattern()
         self.localRc['mathtext.tt'] = fprops.get_fontconfig_pattern()
         self.localRc['mathtext.sf'] = fprops.get_fontconfig_pattern()
+        # Workaround for a bug in matplotlib where there are no
+        # negative signs in front of axis labels in latex mode
+        if self.backend == "latex":
+            for ax in self.figure.axes:
+                labels = ax.get_yticklabels()
+                ticks = ax.get_yticks()
+                for i in range(0, len(labels)):
+                    if labels[i].get_text().strip() == "":
+                        l = "%g" % ticks[i]
+                        labels[i].set_text(l)
+                ax.set_yticklabels(labels)
     def _grid_space(self, frm, to, spacing, count):
         dist = to-frm
         figsize = (dist-(count-1)*spacing)/count
@@ -904,7 +932,18 @@ class Canvas:
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
         assert (dpi is None) or filename.endswith(".png"), "DPI argument only supported for png files"
         self.fix_fonts()
-        with plt.rc_context(rc=self.localRc):
+        # Lazy importing of matplotlib backend
+        if self.backend == "latex":
+            from matplotlib.backends.backend_pgf import FigureCanvasPgf
+            mplcanvas = FigureCanvasPgf(self.figure)
+            matplotlib.rc('pgf', texsystem=self.latex_engine)
+            if self.latex_preamble is not None:
+                preamble = matplotlib.rcParams.setdefault('pgf.preamble', [])
+                preamble.append(self.latex_preamble)
+        elif self.backend == "default":
+            from matplotlib.backends.backend_agg import FigureCanvasAgg
+            mplcanvas = FigureCanvasAgg(self.figure)
+        with matplotlib.rc_context(rc=self.localRc):
             self.figure.savefig(filename, dpi=dpi, *args, **kwargs)
         if filetype == "png":
             with PIL.Image.open(filename) as img:
