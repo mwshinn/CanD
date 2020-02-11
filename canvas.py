@@ -602,6 +602,23 @@ class Canvas:
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
         self.add_poly([pt_ll, pt_ll+connect.height(), pt_ur, pt_ll+connect.width(), pt_ll, pt_ll], **kwargs)
+    @pns.accepts(pns.Self, Point, Point)
+    def add_ellipse(self, pos_ll, pos_ur, **kwargs):
+        """Draw a rectangle.
+
+        The lower left corner is the Point `pos_ll` and the upper
+        right corner is the Point `pos_ur`.  All other keyword
+        arguments are passed directly to matplotlib.patches.Polygon.
+
+        """
+        pt_ll = self.convert_to_figure_coord(pos_ll)
+        pt_ur = self.convert_to_figure_coord(pos_ur)
+        diff = pt_ur - pt_ll
+        center = pt_ll | pt_ur
+        # When drawing a box you have to duplicate the last point for
+        # some reason... probably a bug in matplotlib
+        e = plt.matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y, **kwargs)
+        self.figure.add_artist(e)
     def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
 
@@ -1014,6 +1031,8 @@ class Canvas:
         self.save(tmp)
         PIL.Image.open(tmp).show()
 
+
+        
 # c = Canvas(6,6)
 # c.add_axis("axname", Point(.05, .05), Point(.95, .95))
 # c.ax("axname").plot([1, 2, 3])
