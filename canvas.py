@@ -604,17 +604,20 @@ class Canvas:
         self.add_poly([pt_ll, pt_ll+connect.height(), pt_ur, pt_ll+connect.width(), pt_ll, pt_ll], **kwargs)
     @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
-        """Draw a rectangle.
+        """Draw an ellipse.
 
         The lower left corner is the Point `pos_ll` and the upper
-        right corner is the Point `pos_ur`.  All other keyword
-        arguments are passed directly to matplotlib.patches.Polygon.
-
+        right corner is the Point `pos_ur`.  Note that rotation is not
+        currently possible because it is not clear in which coordinate
+        system the rotation would be applied.  All other keyword
+        arguments are passed directly to matplotlib.patches.Ellipse.
         """
         pt_ll = self.convert_to_figure_coord(pos_ll)
         pt_ur = self.convert_to_figure_coord(pos_ur)
         diff = pt_ur - pt_ll
         center = pt_ll | pt_ur
+        if "angle" in kwargs.keys():
+            print("Warning: the 'angle' keyword passed to add_ellipse may give unexpected results.")
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
         e = plt.matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y, **kwargs)
