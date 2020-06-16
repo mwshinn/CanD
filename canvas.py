@@ -338,6 +338,15 @@ class Canvas:
         self.tmpfiles = []
         atexit.register(self._cleanup)
         self.localRc = {}
+        # Set up font sizes
+        self.localRc['font.size'] = fontsize
+        self.localRc['axes.titlesize'] = fontsize
+        self.localRc['axes.labelsize'] = fontsize
+        self.localRc['xtick.labelsize'] = fontsize_ticks or fontsize
+        self.localRc['ytick.labelsize'] = fontsize_ticks or fontsize
+        self.localRc['legend.fontsize'] = fontsize
+        self.localRc['figure.titlesize'] = fontsize
+        
         self.backend = "default"
         # Create default units.  Dictionary of tuples indexed by unit
         # name.  First two elements are x and y scale (with respect to
