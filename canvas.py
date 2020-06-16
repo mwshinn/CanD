@@ -628,6 +628,28 @@ class Canvas:
         # some reason... probably a bug in matplotlib
         self.add_poly([pt_ll, pt_ll+connect.height(), pt_ur, pt_ll+connect.width(), pt_ll, pt_ll], **kwargs)
     @pns.accepts(pns.Self, Point, Point)
+    def add_box(self, pos_ll, pos_ur, **kwargs):
+        """Draw a bounding box.
+
+        The lower left corner is the Point `pos_ll` and the upper
+        right corner is the Point `pos_ur`.  All other keyword
+        arguments are passed directly to
+        matplotlib.patches.FancyBboxPatch.
+
+        Note that this differs from add_rect because it uses the
+        FancyBboxPatch rather than matplotlib.patches.Polygon.  Thus,
+        this function can be used for, e.g., boxes with round corners
+        """
+        pt_ll_f = self.convert_to_figure_coord(pos_ll)
+        pt_ur_f = self.convert_to_figure_coord(pos_ur)
+        diff_f = pt_ur_f - pt_ll_f
+        if "fill" not in kwargs.keys():
+            kwargs['fill'] = False
+        if 'mutation_scale' not in kwargs.keys():
+            kwargs['mutation_scale'] = (diff_f.x + diff_f.y)/(diff.x + diff.y)
+        box = matplotlib.patches.FancyBboxPatch(tuple(pt_ll_f), diff_f.x, diff_f.y, transform=self.figure.transFigure, **kwargs)
+        self.figure.add_artist(box)
+    @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
         """Draw an ellipse.
 
