@@ -8,6 +8,12 @@ import tempfile
 import atexit
 import os
 
+# If IPython is installed, try to import the display code for it.
+try:
+    from IPython.display import Image as IPython_Image, display as IPython_display
+except ImportError:
+    pass
+
 class Metric(pns.Type):
     """A Paranoid Scientist Type for Points and Vectors."""
     def test(self, v):
@@ -640,14 +646,14 @@ class Canvas:
         FancyBboxPatch rather than matplotlib.patches.Polygon.  Thus,
         this function can be used for, e.g., boxes with round corners
         """
-        pt_ll_f = self.convert_to_figure_coord(pos_ll)
-        pt_ur_f = self.convert_to_figure_coord(pos_ur)
-        diff_f = pt_ur_f - pt_ll_f
+        pt_ll = self.convert_to_figure_coord(pos_ll)
+        pt_ur = self.convert_to_figure_coord(pos_ur)
+        diff = pt_ur - pt_ll
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
         if 'mutation_scale' not in kwargs.keys():
-            kwargs['mutation_scale'] = (diff_f.x + diff_f.y)/(diff.x + diff.y)
-        box = matplotlib.patches.FancyBboxPatch(tuple(pt_ll_f), diff_f.x, diff_f.y, transform=self.figure.transFigure, **kwargs)
+            kwargs['mutation_scale'] = (diff.x/self.size[0] +  diff.y/self.size[1])/2
+        box = matplotlib.patches.FancyBboxPatch(tuple(pt_ll), diff.x, diff.y, transform=self.figure.transFigure, **kwargs)
         self.figure.add_artist(box)
     @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
@@ -795,9 +801,10 @@ class Canvas:
             params_noline['linestyle'] = 'None'
             self.add_marker(pt1+(pt2-pt1)/2, **params_noline)
     @pns.accepts(pns.Self, pns.List(pns.Or(pns.Tuple(pns.String, pns.String),
-                                           pns.Tuple(pns.String, pns.String, Metric))))
+                                           pns.Tuple(pns.String, pns.String, Metric))),
+                 pns.Natural0)
     @pns.requires("all((l[1] in self.axes.keys()) or (self.is_unit(l[1])) for l in labs)")
-    def add_figure_labels(self, labs):
+    def add_figure_labels(self, labs, size=12):
         """Add letter labels to axes.
 
         `labs` should be a list of tuples of length 2 or 3.  The first
@@ -817,7 +824,7 @@ class Canvas:
                     offset += l[2]
                 elif isinstance(l[2], Point):
                     offset = l[2]
-            self.add_text(l[0], loc+offset, weight="heavy", size=12)
+            self.add_text(l[0], loc+offset, weight="heavy", size=size)
     def fix_fonts(self):
         """Convert all text to the desired font.
 
@@ -1097,12 +1104,30 @@ class Canvas:
         if unitname is not None:
             assert self.is_valid_identifier(unitname), "Invalid axis name"
             self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
-    def show(self):
-        """Display the Canvas in a new window (non-blocking)."""
+    def show(self, **kwargs):
+        """Display the Canvas in a new window (non-blocking) or in Jupyter.
+
+        Keyword arguments are the same as they are for Canvas.save,
+        with the exception of "filename", which is of course not
+        available here.
+        """
+        # Test if we are in a Jupyter notebook or in the IPython
+        # interpreter.
+        in_jupyter = True
+        try:
+            get_ipython
+        except NameError:
+            in_jupyter = False
+        # Save a temporary image file with the plot
         tmp = tempfile.mkstemp('.png')[1]
         self.tmpfiles.append(tmp)
-        self.save(tmp)
-        PIL.Image.open(tmp).show()
+        self.save(tmp, **kwargs)
+        # Display, either in a new window, or in Jupyter
+        if in_jupyter:
+            IPython_display(IPython_Image(filename=tmp))
+        else:
+            PIL.Image.open(tmp).show()
+        
 
 
         
