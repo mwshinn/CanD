@@ -423,7 +423,6 @@ class Canvas:
         self.latex_engine = engine
         self.latex_preamble = preamble
     @pns.accepts(pns.Self, pns.String, Vector, Point)
-    @pns.requires('self.is_valid_identifier(name)')
     @pns.ensures('not self.is_valid_identifier(name)')
     def add_unit(self, name, scale, origin=Point(0, 0, "figure")):
         """Create a new unit of measure.
@@ -435,11 +434,11 @@ class Canvas:
         is optionally specified by `origin`.
 
         """
+        assert self.is_valid_identifier(name), f"Invalid unit name {name!r}"
         scale = self.convert_to_figure_length(scale)
         origin = self.convert_to_figure_coord(origin)
         self.units[name] = (scale.width().x, scale.height().y, origin)
     @pns.accepts(pns.Self, pns.String)
-    @pns.requires("self.is_unit(name)")
     def set_default_unit(self, name):
         """Changes the default unit for the Canvas.
 
@@ -448,9 +447,9 @@ class Canvas:
         to figure coordinates.
 
         """
+        assert self.is_unit(name), f"Invalid unit name {name!r} set as default"
         self.default_unit = name
     @pns.accepts(pns.Self, pns.String, Point, Point)
-    @pns.requires("self.is_valid_identifier(name)")
     @pns.ensures("not self.is_valid_identifier(name)")
     def add_axis(self, name, pos_ll, pos_ur):
         """Create a new axis on the Canvas.
@@ -472,7 +471,8 @@ class Canvas:
 
         """
         assert name not in self.axes.keys(), "Axis name alredy exists"
-        assert name != "figure", "Invalid axis name"
+        assert self.is_valid_identifier(name), f"Invalid axis name {name!r}"
+        assert name != "figure", "Invalid axis name 'figure'"
         pt_ll = self.convert_to_figure_coord(pos_ll)
         pt_ur = self.convert_to_figure_coord(pos_ur)
         ax = self.figure.add_axes([pt_ll.x, pt_ll.y, pt_ur.x-pt_ll.x, pt_ur.y-pt_ll.y], label=name)
@@ -803,7 +803,6 @@ class Canvas:
     @pns.accepts(pns.Self, pns.List(pns.Or(pns.Tuple(pns.String, pns.String),
                                            pns.Tuple(pns.String, pns.String, Metric))),
                  pns.Natural0)
-    @pns.requires("all((l[1] in self.axes.keys()) or (self.is_unit(l[1])) for l in labs)")
     def add_figure_labels(self, labs, size=12):
         """Add letter labels to axes.
 
@@ -818,7 +817,9 @@ class Canvas:
 
         for l in labs:
             offset = Vector(-.15, .12, "absolute")
-            loc = Point(0, 1, "axis_"+l[1] if l[1] in self.axes.keys() else l[1])
+            unit_name = "axis_"+l[1] if l[1] in self.axes.keys() else l[1]
+            assert self.is_unit(unit_name), f"Invalid unit or axis {l[1]} in figure label"
+            loc = Point(0, 1, unit_name)
             if len(l) == 3:
                 if isinstance(l[2], Vector):
                     offset += l[2]
@@ -952,7 +953,7 @@ class Canvas:
             if names[i] is not None:
                 self.add_axis(names[i], Point(posx[x][0], posy[y][0], "figure"), Point(posx[x][1], posy[y][1], "figure"))
         if unitname is not None:
-            assert self.is_valid_identifier(unitname), "Invalid axis name"
+            assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
             self.add_unit(unitname, (pt_ur-pt_ll), pt_ll)
 
     @pns.accepts(pns.Self, pns.String, pns.Maybe(pns.Natural1))
@@ -1102,7 +1103,7 @@ class Canvas:
         assert any(ft for ft in filetypes if filename.endswith("."+ft))
         self.images.append((filename, pos_ll, pos_ur))
         if unitname is not None:
-            assert self.is_valid_identifier(unitname), "Invalid axis name"
+            assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
             self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
     def show(self, **kwargs):
         """Display the Canvas in a new window (non-blocking) or in Jupyter.
