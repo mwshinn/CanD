@@ -507,7 +507,7 @@ class Canvas:
             return True
         if name in self.axes.keys():
             return True
-        if not name.startswith("axis_") and self.is_unit("axis_"+name):
+        if name.startswith("axis_") and self.is_unit(name[5:]):
             return True
         if name in self.units.keys():
             return True
@@ -1030,7 +1030,7 @@ class Canvas:
                     page.showPDFpage(rect, src=toinsert, keep_proportion=False)
                 else:
                     page.insertImage(rect, filename=image[0], keep_proportion=False)
-            pdf.saveIncr()
+            pdf.save(pdf.name, deflate=True, incremental=True)
             pdf.close()
     def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment=None, verticalalignment=None, ha=None, va=None):
         """Add a png or pdf image to the Canvas.
