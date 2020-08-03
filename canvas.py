@@ -8,6 +8,8 @@ import tempfile
 import atexit
 import os
 
+# TODO convert everything to pixel coordinates (see add_box)
+
 # If IPython is installed, try to import the display code for it.
 try:
     from IPython.display import Image as IPython_Image, display as IPython_display
@@ -368,6 +370,12 @@ class Canvas:
             size_y_inches = size_y/25.4
         else:
             raise ValueError("Invalid unit")
+
+        # Create matplotlib figure object
+        figsize = (size_x_inches, size_y_inches)
+        self.figure = matplotlib.figure.Figure(figsize=figsize)
+        self.size = figsize # Size of the figure in inches
+
         self.units = dict()
         self.add_unit("in", Vector(1/size_x_inches, 1/size_y_inches, "figure"))
         self.units["inch"] = self.units["in"]
@@ -385,10 +393,9 @@ class Canvas:
         self.add_unit("pt", Vector(1/72, 1/72, "inches"))
         self.units["point"] = self.units["pt"]
         self.units["points"] = self.units["pt"]
-        # Create matplotlib figure object
-        figsize = (size_x_inches, size_y_inches)
-        self.figure = matplotlib.figure.Figure(figsize=figsize)
-        self.size = figsize # Size of the figure in inches
+        self.add_unit("px", Vector(1/self.figure.dpi, 1/self.figure.dpi, "in"))
+        self.units["pixel"] = self.units["px"]
+        self.units["pixels"] = self.units["px"]
     def _cleanup(self):
         for f in self.tmpfiles:
             os.remove(f)
@@ -601,6 +608,24 @@ class Canvas:
         else:
             origin = Point(0, 0, vector.coordinate)
             return self.convert_to_figure_coord(origin+vector) - self.convert_to_figure_coord(origin)
+    @pns.accepts(pns.Self, Metric)
+    @pns.returns(Metric)
+    @pns.ensures("return.coordinate == 'pixels'")
+    def convert_to_pixel_coord(self, point):
+        if isinstance(point, Vector):
+            return self.convert_to_pixel_length(point)
+        p = self.convert_to_figure_coord(point)
+        scale_x = self.figure.dpi * self.size[0]
+        scale_y = self.figure.dpi * self.size[1]
+        return Point(p.x * scale_x, p.y * scale_y, "pixels")
+    @pns.accepts(pns.Self, Vector)
+    @pns.returns(Vector)
+    @pns.ensures("return.coordinate == 'pixels'")
+    def convert_to_pixel_length(self, vec):
+        v = self.convert_to_figure_length(vec)
+        scale_x = self.figure.dpi * self.size[0]
+        scale_y = self.figure.dpi * self.size[1]
+        return Vector(v.x * scale_x, v.y * scale_y, "pixels")
     @pns.accepts(pns.Self, pns.List(Point))
     def add_poly(self, points, **kwargs):
         """Draw a polygon with given vertices.
@@ -646,14 +671,14 @@ class Canvas:
         FancyBboxPatch rather than matplotlib.patches.Polygon.  Thus,
         this function can be used for, e.g., boxes with round corners
         """
-        pt_ll = self.convert_to_figure_coord(pos_ll)
-        pt_ur = self.convert_to_figure_coord(pos_ur)
+        pt_ll = self.convert_to_pixel_coord(pos_ll)
+        pt_ur = self.convert_to_pixel_coord(pos_ur)
         diff = pt_ur - pt_ll
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
         if 'mutation_scale' not in kwargs.keys():
-            kwargs['mutation_scale'] = (diff.x/self.size[0] +  diff.y/self.size[1])/2
-        box = matplotlib.patches.FancyBboxPatch(tuple(pt_ll), diff.x, diff.y, transform=self.figure.transFigure, **kwargs)
+            kwargs['mutation_scale'] = self.figure.dpi/2 # 1/2 inch mutation scale
+        box = matplotlib.patches.FancyBboxPatch((pt_ll.x, pt_ll.y), diff.x, diff.y, transform=None, **kwargs)
         self.figure.add_artist(box)
     @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
