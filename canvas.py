@@ -8,7 +8,7 @@ import tempfile
 import atexit
 import os
 
-# TODO convert everything to pixel coordinates (see add_box)
+# TODO start using "proper" inches, i.e. via fig.dpi_scale_trans, instead of figure coords
 
 # If IPython is installed, try to import the display code for it.
 try:
@@ -375,6 +375,7 @@ class Canvas:
         figsize = (size_x_inches, size_y_inches)
         self.figure = matplotlib.figure.Figure(figsize=figsize)
         self.size = figsize # Size of the figure in inches
+        self.trans_absolute = self.figure.dpi_scale_trans
 
         self.units = dict()
         self.add_unit("in", Vector(1/size_x_inches, 1/size_y_inches, "figure"))
@@ -626,6 +627,20 @@ class Canvas:
         scale_x = self.figure.dpi * self.size[0]
         scale_y = self.figure.dpi * self.size[1]
         return Vector(v.x * scale_x, v.y * scale_y, "pixels")
+    @pns.accepts(pns.Self, Metric)
+    @pns.returns(Metric)
+    @pns.ensures("return.coordinate == 'absolute'")
+    def convert_to_absolute_coord(self, point):
+        if isinstance(point, Vector):
+            return self.convert_to_absolute_length(point)
+        p = self.convert_to_figure_coord(point)
+        return Point(p.x * self.size[0], p.y * self.size[1], "absolute")
+    @pns.accepts(pns.Self, Vector)
+    @pns.returns(Vector)
+    @pns.ensures("return.coordinate == 'absolute'")
+    def convert_to_absolute_length(self, vec):
+        v = self.convert_to_figure_length(vec)
+        return Vector(v.x * self.size[0], v.y * self.size[1], "absolute")
     @pns.accepts(pns.Self, pns.List(Point))
     def add_poly(self, points, **kwargs):
         """Draw a polygon with given vertices.
@@ -637,11 +652,12 @@ class Canvas:
         """
         np_points = np.zeros((len(points), 2))
         for i,p in enumerate(points):
-            pt = self.convert_to_figure_coord(p)
+            pt = self.convert_to_absolute_coord(p)
             np_points[i] = [pt.x, pt.y]
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
-        poly = matplotlib.patches.Polygon(np_points, closed=False, transform=self.figure.transFigure, **kwargs)
+        poly = matplotlib.patches.Polygon(np_points, closed=False,
+                                          transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(poly)
     @pns.accepts(pns.Self, Point, Point)
     def add_rect(self, pos_ll, pos_ur, **kwargs):
@@ -652,8 +668,8 @@ class Canvas:
         arguments are passed directly to matplotlib.patches.Polygon.
 
         """
-        pt_ll = self.convert_to_figure_coord(pos_ll)
-        pt_ur = self.convert_to_figure_coord(pos_ur)
+        pt_ll = self.convert_to_absolute_coord(pos_ll)
+        pt_ur = self.convert_to_absolute_coord(pos_ur)
         connect = pt_ur - pt_ll
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
@@ -671,14 +687,14 @@ class Canvas:
         FancyBboxPatch rather than matplotlib.patches.Polygon.  Thus,
         this function can be used for, e.g., boxes with round corners
         """
-        pt_ll = self.convert_to_pixel_coord(pos_ll)
-        pt_ur = self.convert_to_pixel_coord(pos_ur)
+        pt_ll = self.convert_to_absolute_coord(pos_ll)
+        pt_ur = self.convert_to_absolute_coord(pos_ur)
         diff = pt_ur - pt_ll
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
         if 'mutation_scale' not in kwargs.keys():
-            kwargs['mutation_scale'] = self.figure.dpi/2 # 1/2 inch mutation scale
-        box = matplotlib.patches.FancyBboxPatch((pt_ll.x, pt_ll.y), diff.x, diff.y, transform=None, **kwargs)
+            kwargs['mutation_scale'] = 1/2 # 1/2 inch mutation scale
+        box = matplotlib.patches.FancyBboxPatch((pt_ll.x, pt_ll.y), diff.x, diff.y, transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(box)
     @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
@@ -690,15 +706,16 @@ class Canvas:
         system the rotation would be applied.  All other keyword
         arguments are passed directly to matplotlib.patches.Ellipse.
         """
-        pt_ll = self.convert_to_figure_coord(pos_ll)
-        pt_ur = self.convert_to_figure_coord(pos_ur)
+        pt_ll = self.convert_to_absolute_coord(pos_ll)
+        pt_ur = self.convert_to_absolute_coord(pos_ur)
         diff = pt_ur - pt_ll
         center = pt_ll | pt_ur
         if "angle" in kwargs.keys():
             print("Warning: the 'angle' keyword passed to add_ellipse may give unexpected results.")
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
-        e = matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y, **kwargs)
+        e = matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y,
+                                       transform=self.trans_absolute **kwargs)
         self.figure.add_artist(e)
     def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
@@ -709,12 +726,12 @@ class Canvas:
         arguments are given, but these can be overridden.
 
         """
-        pt_frm = self.convert_to_figure_coord(frm)
-        pt_to = self.convert_to_figure_coord(to)
+        pt_frm = self.convert_to_absolute_coord(frm)
+        pt_to = self.convert_to_absolute_coord(to)
         pt_delta = pt_frm - pt_to
         if "linewidth" in kwargs:
             lw = kwargs['linewidth']
-        arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.figure.transFigure,
+        arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.trans_absolute,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
     def add_text(self, text, pos, weight="roman", size=None, stretch="normal", style="normal", **kwargs):
@@ -740,11 +757,11 @@ class Canvas:
             kwargs['horizontalalignment'] = kwargs['ha'] if 'ha' in kwargs else 'center'
         if 'verticalalignment' not in kwargs:
             kwargs['verticalalignment'] = kwargs['va'] if 'va' in kwargs else 'center'
-        pt = self.convert_to_figure_coord(pos)
+        pt = self.convert_to_absolute_coord(pos)
         # Check valid font names with matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
         fprops = self._get_font(weight=weight, size=size, stretch=stretch, style=style)
-        self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure,
+        self.figure.text(pt.x, pt.y, text, transform=self.trans_absolute,
                          fontproperties=fprops, fontsize=size, **kwargs)
     def add_line(self, frm, to, **kwargs):
         """Draw a line.
@@ -753,9 +770,10 @@ class Canvas:
         arguments are passed directly to matplotlib.lines.Line2D.
 
         """
-        frm = self.convert_to_figure_coord(frm)
-        to = self.convert_to_figure_coord(to)
-        l2d = matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y], **kwargs)
+        frm = self.convert_to_absolute_coord(frm)
+        to = self.convert_to_absolute_coord(to)
+        l2d = matplotlib.lines.Line2D([frm.x, to.x], [frm.y, to.y],
+                                      transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(l2d)
     def add_marker(self, pos, **kwargs):
         """Draw a matplotlib marker.
@@ -764,8 +782,8 @@ class Canvas:
         passed directly to matplotlib.lines.Line2D.
 
         """
-        pos = self.convert_to_figure_coord(pos)
-        l2d = matplotlib.lines.Line2D([pos.x], [pos.y], **kwargs)
+        pos = self.convert_to_absolute_coord(pos)
+        l2d = matplotlib.lines.Line2D([pos.x], [pos.y], transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(l2d)
     @pns.accepts(pns.Self, Point, pns.List(pns.Tuple(pns.String, pns.Dict(k=pns.String, v=pns.Unchecked))), pns.Maybe(pns.Natural1), Metric, Metric, Metric)
     def add_legend(self, pos_tl, els, fontsize=None, line_spacing=Height(2.2, "Msize"), sym_width=Width(2.3, "Msize"), padding_sep=Width(1.2, "Msize")):
@@ -788,23 +806,22 @@ class Canvas:
         """
         if fontsize is None:
             fontsize = self.fontsize
-        pos_tl = self.convert_to_figure_coord(pos_tl)
+        pos_tl = self.convert_to_absolute_coord(pos_tl)
         assert len(els) >= 1
         # Get the text height
         fprops = self._get_font()
         t = matplotlib.textpath.TextPath((0,0), "M", size=fontsize, prop=fprops)
-        bb = t.get_extents().inverse_transformed(self.figure.transFigure)
         if self.is_valid_identifier("Msize"):
             self.add_unit("Msize", Vector(self.fontsize, self.fontsize, "point"))
         # All params are in units of M width or height
         padding_top = Height(0, "Msize") # Space on top of figure
         padding_left = Width(0, "Msize") # Space on left of lines
         # Convert these to an easier coordinate system
-        padding_top = self.convert_to_figure_length(padding_top)
-        padding_left = self.convert_to_figure_length(padding_left)
-        padding_sep = self.convert_to_figure_length(padding_sep)
-        line_spacing = self.convert_to_figure_length(line_spacing)
-        sym_width = self.convert_to_figure_length(sym_width)
+        padding_top = self.convert_to_absolute_length(padding_top)
+        padding_left = self.convert_to_absolute_length(padding_left)
+        padding_sep = self.convert_to_absolute_length(padding_sep)
+        line_spacing = self.convert_to_absolute_length(line_spacing)
+        sym_width = self.convert_to_absolute_length(sym_width)
         top_left = pos_tl - padding_top + padding_left
         for i in range(0, len(els)):
             # Figure out the vertical position of this element of the legend
@@ -946,10 +963,10 @@ class Canvas:
             size_x = size.width()
             size_y = size.height()
         ncols = len(names)//nrows + int(len(names) % nrows != 0)
-        pt_ll = self.convert_to_figure_coord(pos_ll)
-        pt_ur = self.convert_to_figure_coord(pos_ur)
+        pt_ll = self.convert_to_absolute_coord(pos_ll)
+        pt_ur = self.convert_to_absolute_coord(pos_ur)
         if size_x is not None:
-            size_x = self.convert_to_figure_length(size_x)
+            size_x = self.convert_to_absolute_length(size_x)
             if ncols > 1:
                 spacing_x = ((pt_ur - pt_ll).width() - size_x * ncols)/(ncols-1)
             elif ncols == 1:
@@ -959,7 +976,7 @@ class Canvas:
                 pt_ur = pt_ur - (w - size_x)/2
             print("Spacing", spacing_x)
         if size_y is not None:
-            size_y = self.convert_to_figure_length(size_y)
+            size_y = self.convert_to_absolute_length(size_y)
             if nrows > 1:
                 spacing_y = ((pt_ur - pt_ll).height() - size_y * nrows)/(nrows-1)
             elif nrows == 1:
@@ -968,15 +985,15 @@ class Canvas:
                 pt_ll = pt_ll + (h - size_y)/2
                 pt_ur = pt_ur - (h - size_y)/2
             print("Spacing", spacing_y)
-        spacing_x = self.convert_to_figure_length(spacing_x)
-        spacing_y = self.convert_to_figure_length(spacing_y)
+        spacing_x = self.convert_to_absolute_length(spacing_x)
+        spacing_y = self.convert_to_absolute_length(spacing_y)
         posx = self._grid_space(pt_ll.x, pt_ur.x, spacing_x.x, ncols)
         posy = list(reversed(self._grid_space(pt_ll.y, pt_ur.y, spacing_y.y, nrows)))
         for i in range(0, len(names)):
             x = i % ncols
             y = i // ncols
             if names[i] is not None:
-                self.add_axis(names[i], Point(posx[x][0], posy[y][0], "figure"), Point(posx[x][1], posy[y][1], "figure"))
+                self.add_axis(names[i], Point(posx[x][0], posy[y][0], "absolute"), Point(posx[x][1], posy[y][1], "absolute"))
         if unitname is not None:
             assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
             self.add_unit(unitname, (pt_ur-pt_ll), pt_ll)
