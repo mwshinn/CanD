@@ -8,8 +8,6 @@ import tempfile
 import atexit
 import os
 
-# TODO start using "proper" inches, i.e. via fig.dpi_scale_trans, instead of figure coords
-
 # If IPython is installed, try to import the display code for it.
 try:
     from IPython.display import Image as IPython_Image, display as IPython_display
@@ -432,7 +430,7 @@ class Canvas:
         self.latex_preamble = preamble
     @pns.accepts(pns.Self, pns.String, Vector, Point)
     @pns.ensures('not self.is_valid_identifier(name)')
-    def add_unit(self, name, scale, origin=Point(0, 0, "figure")):
+    def add_unit(self, name, scale, origin=Point(0, 0, "absolute")):
         """Create a new unit of measure.
 
         A unit is defined by an affine transformation.  It has an
@@ -443,8 +441,8 @@ class Canvas:
 
         """
         assert self.is_valid_identifier(name), f"Invalid unit name {name!r}"
-        scale = self.convert_to_figure_length(scale)
-        origin = self.convert_to_figure_coord(origin)
+        scale = self.convert_to_absolute_length(scale)
+        origin = self.convert_to_absolute_coord(origin)
         self.units[name] = (scale.width().x, scale.height().y, origin)
     @pns.accepts(pns.Self, pns.String)
     def set_default_unit(self, name):
@@ -481,6 +479,9 @@ class Canvas:
         assert name not in self.axes.keys(), "Axis name alredy exists"
         assert self.is_valid_identifier(name), f"Invalid axis name {name!r}"
         assert name != "figure", "Invalid axis name 'figure'"
+        # Need to use figure coordinates here because of a bug in
+        # matplotlib which won't accept the 'transform' argument to
+        # add_axes.
         pt_ll = self.convert_to_figure_coord(pos_ll)
         pt_ur = self.convert_to_figure_coord(pos_ur)
         ax = self.figure.add_axes([pt_ll.x, pt_ll.y, pt_ur.x-pt_ll.x, pt_ur.y-pt_ll.y], label=name)
@@ -498,8 +499,8 @@ class Canvas:
             norm = matplotlib.colors.Normalize(vmin=bounds[0], vmax=bounds[1])
         else:
             norm = bounds
-        size = self.convert_to_figure_coord(pos_ur - pos_ll)
-        orientation = "horizontal" if size.x*self.size[0] > size.y*self.size[1] else "vertical"
+        size = self.convert_to_absolute_coord(pos_ur - pos_ll)
+        orientation = "horizontal" if size.x > size.y else "vertical"
         colorbar = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
@@ -534,8 +535,8 @@ class Canvas:
         return not self.is_unit(name)
     @pns.accepts(pns.Self, Metric)
     @pns.returns(Metric)
-    @pns.ensures("return.coordinate == 'figure'")
-    def convert_to_figure_coord(self, point):
+    @pns.ensures("return.coordinate == 'absolute'")
+    def convert_to_absolute_coord(self, point):
         """Convert the coordinate system of the Point or Vector `point` to be "figure".
 
         We can convert any coordinate system to the "figure"
@@ -546,44 +547,44 @@ class Canvas:
 
         """
         if isinstance(point, Vector):
-            return self.convert_to_figure_length(point)
+            return self.convert_to_absolute_length(point)
         if point.coordinate == "default":
-            return self.convert_to_figure_coord(Point(point.x, point.y, self.default_unit))
-        if point.coordinate == "figure":
-            return point
+            return self.convert_to_absolute_coord(Point(point.x, point.y, self.default_unit))
         if point.coordinate == "absolute":
-            return Point(point.x/self.size[0], point.y/self.size[1], "figure")
+            return point
+        if point.coordinate == "figure":
+            return Point(point.x*self.size[0], point.y*self.size[1], "absolute")
         if point.coordinate == "-absolute":
-            return Point(1-point.x/self.size[0], 1-point.y/self.size[1], "figure")
+            return Point(self.size[0]-point.x, self.size[1]-point.y, "absolute")
         if point.coordinate in self.axes.keys():
             tf_data = self.axes[point.coordinate].transData
-            tf_fig = self.figure.transFigure.inverted()
+            tf_fig = self.trans_absolute.inverted()
             x,y = tf_fig.transform(tf_data.transform((point.x, point.y)))
-            return Point(x, y, "figure")
+            return Point(x, y, "absolute")
         if point.coordinate.startswith("axis_") and point.coordinate[5:] in self.axes.keys():
             tf_ax = self.axes[point.coordinate[5:]].transAxes
-            tf_fig = self.figure.transFigure.inverted()
+            tf_fig = self.trans_absolute.inverted()
             x,y = tf_fig.transform(tf_ax.transform((point.x, point.y)))
-            return Point(x, y, "figure")
+            return Point(x, y, "absolute")
         if point.coordinate in self.units:
             u = point.coordinate
-            return Vector(point.x*self.units[u][0], point.y*self.units[u][1], "figure") + self.units[u][2]
+            return Vector(point.x*self.units[u][0], point.y*self.units[u][1], "absolute") + self.units[u][2]
         if isinstance(point, BinopPoint):
             # Call recursively, but handle the scalar case separately
             if isinstance(point.lhs, Point) or isinstance(point.lhs, Vector):
-                lhs = self.convert_to_figure_coord(point.lhs)
+                lhs = self.convert_to_absolute_coord(point.lhs)
             else:
                 lhs = point.lhs
             if isinstance(point.rhs, Point) or isinstance(point.rhs, Vector):
-                rhs = self.convert_to_figure_coord(point.rhs)
+                rhs = self.convert_to_absolute_coord(point.rhs)
             else:
                 rhs = point.rhs
             return BinopPoint.op_table[point.op](lhs, rhs)
         raise ValueError("Invalid point coordinate system %s" % point.coordinate)
     @pns.accepts(pns.Self, Vector)
     @pns.returns(Vector)
-    @pns.ensures("return.coordinate == 'figure'")
-    def convert_to_figure_length(self, vector):
+    @pns.ensures("return.coordinate == 'absolute'")
+    def convert_to_absolute_length(self, vector):
         """Convert the coordinate system of the Vector `vector` to be "figure".
 
         We can convert any coordinate system to the "figure"
@@ -593,54 +594,36 @@ class Canvas:
         Vectors.
 
         """
-        if vector.coordinate == "figure":
+        if vector.coordinate == "absolute":
             return vector
         elif isinstance(vector, BinopVector):
             # Call recursively, but handle the scalar case separately
             if isinstance(vector.lhs, Point) or isinstance(vector.lhs, Vector):
-                lhs = self.convert_to_figure_coord(vector.lhs)
+                lhs = self.convert_to_absolute_coord(vector.lhs)
             else:
                 lhs = vector.lhs
             if isinstance(vector.rhs, Point) or isinstance(vector.rhs, Vector):
-                rhs = self.convert_to_figure_coord(vector.rhs)
+                rhs = self.convert_to_absolute_coord(vector.rhs)
             else:
                 rhs = vector.rhs
             return BinopVector.op_table[vector.op](lhs, rhs)
         else:
             origin = Point(0, 0, vector.coordinate)
-            return self.convert_to_figure_coord(origin+vector) - self.convert_to_figure_coord(origin)
+            return self.convert_to_absolute_coord(origin+vector) - self.convert_to_absolute_coord(origin)
     @pns.accepts(pns.Self, Metric)
     @pns.returns(Metric)
-    @pns.ensures("return.coordinate == 'pixels'")
-    def convert_to_pixel_coord(self, point):
+    @pns.ensures("return.coordinate == 'figure'")
+    def convert_to_figure_coord(self, point):
         if isinstance(point, Vector):
-            return self.convert_to_pixel_length(point)
-        p = self.convert_to_figure_coord(point)
-        scale_x = self.figure.dpi * self.size[0]
-        scale_y = self.figure.dpi * self.size[1]
-        return Point(p.x * scale_x, p.y * scale_y, "pixels")
+            return self.convert_to_figure_length(point)
+        p = self.convert_to_absolute_coord(point)
+        return Point(p.x / self.size[0], p.y / self.size[1], "figure")
     @pns.accepts(pns.Self, Vector)
     @pns.returns(Vector)
-    @pns.ensures("return.coordinate == 'pixels'")
-    def convert_to_pixel_length(self, vec):
-        v = self.convert_to_figure_length(vec)
-        scale_x = self.figure.dpi * self.size[0]
-        scale_y = self.figure.dpi * self.size[1]
-        return Vector(v.x * scale_x, v.y * scale_y, "pixels")
-    @pns.accepts(pns.Self, Metric)
-    @pns.returns(Metric)
-    @pns.ensures("return.coordinate == 'absolute'")
-    def convert_to_absolute_coord(self, point):
-        if isinstance(point, Vector):
-            return self.convert_to_absolute_length(point)
-        p = self.convert_to_figure_coord(point)
-        return Point(p.x * self.size[0], p.y * self.size[1], "absolute")
-    @pns.accepts(pns.Self, Vector)
-    @pns.returns(Vector)
-    @pns.ensures("return.coordinate == 'absolute'")
-    def convert_to_absolute_length(self, vec):
-        v = self.convert_to_figure_length(vec)
-        return Vector(v.x * self.size[0], v.y * self.size[1], "absolute")
+    @pns.ensures("return.coordinate == 'figure'")
+    def convert_to_figure_length(self, vec):
+        v = self.convert_to_absolute_length(vec)
+        return Vector(v.x / self.size[0], v.y / self.size[1], "figure")
     @pns.accepts(pns.Self, pns.List(Point))
     def add_poly(self, points, **kwargs):
         """Draw a polygon with given vertices.
