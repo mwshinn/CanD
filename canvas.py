@@ -8,6 +8,8 @@ import tempfile
 import atexit
 import os
 
+# TODO add rotation
+
 # If IPython is installed, try to import the display code for it.
 try:
     from IPython.display import Image as IPython_Image, display as IPython_display
@@ -698,7 +700,7 @@ class Canvas:
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
         e = matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y,
-                                       transform=self.trans_absolute **kwargs)
+                                       transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(e)
     def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
