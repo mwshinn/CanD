@@ -41,9 +41,9 @@ def test_width_and_height_methods():
     c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
     c.add_axis("ax1", lower_points[0], Point(.9, .95))
     for v1 in vectors:
-        h = c.convert_to_figure_coord(v1.height())
-        w = c.convert_to_figure_length(v1.width())
-        v = c.convert_to_figure_coord(v1)
+        h = c.convert_to_absolute_coord(v1.height())
+        w = c.convert_to_absolute_length(v1.width())
+        v = c.convert_to_absolute_coord(v1)
         assert points_close(v, h+w)
         assert points_close(h, v.height())
         assert points_close(w, v.width())
@@ -54,8 +54,8 @@ def test_associative_vector_multiplication():
         c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
-            p1 = c.convert_to_figure_coord(2.1*(1.2*v1))
-            p2 = c.convert_to_figure_coord((2.1*1.2)*v1)
+            p1 = c.convert_to_absolute_coord(2.1*(1.2*v1))
+            p2 = c.convert_to_absolute_coord((2.1*1.2)*v1)
             assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 def test_associative_vector_division():
@@ -64,8 +64,8 @@ def test_associative_vector_division():
         c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
-            p1 = c.convert_to_figure_coord(v1/1.2/2.1)
-            p2 = c.convert_to_figure_coord(v1/(1.2*2.1))
+            p1 = c.convert_to_absolute_coord(v1/1.2/2.1)
+            p2 = c.convert_to_absolute_coord(v1/(1.2*2.1))
             assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 def test_vector_identities():
@@ -73,17 +73,17 @@ def test_vector_identities():
     c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
     c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
     for v in vectors:
-        assert points_close(c.convert_to_figure_coord(v), c.convert_to_figure_coord(v+Vector(0,0))) # Additive identity
-        assert points_close(Vector(0, 0), c.convert_to_figure_coord(v-v)) # Additive identity via subtraction
-        assert points_close(c.convert_to_figure_coord(v), c.convert_to_figure_coord(v*1)) # Multiplicative identity
-        assert points_close(c.convert_to_figure_coord(v), c.convert_to_figure_coord(v*1)) # Multiplicative identity
+        assert points_close(c.convert_to_absolute_coord(v), c.convert_to_absolute_coord(v+Vector(0,0))) # Additive identity
+        assert points_close(Vector(0, 0), c.convert_to_absolute_coord(v-v)) # Additive identity via subtraction
+        assert points_close(c.convert_to_absolute_coord(v), c.convert_to_absolute_coord(v*1)) # Multiplicative identity
+        assert points_close(c.convert_to_absolute_coord(v), c.convert_to_absolute_coord(v*1)) # Multiplicative identity
 
 def test_point_indentities():
     c = Canvas(5,5)
     c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
     c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
     for p in points:
-        assert points_close(c.convert_to_figure_coord(p+Vector(0,0,"ax1")), c.convert_to_figure_coord(p)+c.convert_to_figure_length(Vector(0,0,"ax1")))
+        assert points_close(c.convert_to_absolute_coord(p+Vector(0,0,"ax1")), c.convert_to_absolute_coord(p)+c.convert_to_absolute_length(Vector(0,0,"ax1")))
 
 def test_point_meet_right():
     c = Canvas(5,5)
@@ -91,7 +91,7 @@ def test_point_meet_right():
     c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
     for p1 in points:
         for p2 in points:
-            assert points_close(c.convert_to_figure_coord(p1) >> c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 >> p2))
+            assert points_close(c.convert_to_absolute_coord(p1) >> c.convert_to_absolute_coord(p2), c.convert_to_absolute_coord(p1 >> p2))
 
 def test_point_meet_left():
     c = Canvas(5,5)
@@ -99,15 +99,28 @@ def test_point_meet_left():
     c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
     for p1 in points:
         for p2 in points:
-            assert points_close(c.convert_to_figure_coord(p1) << c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 << p2))
-            
+            assert points_close(c.convert_to_absolute_coord(p1) << c.convert_to_absolute_coord(p2), c.convert_to_absolute_coord(p1 << p2))
+
+def test_rotation():
+    c = Canvas(5,5)
+    c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
+    c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
+    p = Point(.5, .5, "figure")
+    for v in vectors:
+        assert points_close(c.convert_to_absolute_coord(p+v), c.convert_to_absolute_coord(p+(v @ 360)))
+        assert points_close(c.convert_to_absolute_coord(p+v), c.convert_to_absolute_coord(p+(v @ 720)))
+        assert points_close(c.convert_to_absolute_coord(p-v), c.convert_to_absolute_coord(p+(v @ 180)))
+        if not points_close(c.convert_to_absolute_coord(p+v), c.convert_to_absolute_coord(p)): # Non-zero
+            assert not points_close(c.convert_to_absolute_coord(p+v), c.convert_to_absolute_coord(p + (v @ 90)))
+    
+
 def test_point_mean():
     c = Canvas(5,5)
     c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
     c.add_axis("ax1", Point(.4, .4), Point(.9, .95))
     for p1 in points:
         for p2 in points:
-            assert points_close(c.convert_to_figure_coord(p1) | c.convert_to_figure_coord(p2), c.convert_to_figure_coord(p1 | p2))
+            assert points_close(c.convert_to_absolute_coord(p1) | c.convert_to_absolute_coord(p2), c.convert_to_absolute_coord(p1 | p2))
 
 def test_linear_vector_multiplication():
     for l in lower_points:
@@ -115,8 +128,8 @@ def test_linear_vector_multiplication():
         c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
-            p1 = 2.3*c.convert_to_figure_coord(v1)
-            p2 = c.convert_to_figure_coord(2.3*v1)
+            p1 = 2.3*c.convert_to_absolute_coord(v1)
+            p2 = c.convert_to_absolute_coord(2.3*v1)
             assert points_close(p1, p2), f"Failed for {v1}"
 
 def test_linear_vector_division():
@@ -125,8 +138,8 @@ def test_linear_vector_division():
         c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
-            p1 = c.convert_to_figure_coord(v1)/2.3
-            p2 = c.convert_to_figure_coord(v1/2.3)
+            p1 = c.convert_to_absolute_coord(v1)/2.3
+            p2 = c.convert_to_absolute_coord(v1/2.3)
             assert points_close(p1, p2), f"Failed for {v1}"
 
 def test_associativity():
@@ -136,11 +149,11 @@ def test_associativity():
     for v1 in vectors:
         for v2 in vectors:
             for p0 in [Point(.2, .2, "ax1"), Point(0, 2, "newunit")]:
-                p1 = c.convert_to_figure_coord(p0 + (v1+v2))
-                p2 = c.convert_to_figure_coord((p0 + v1) + v2)
+                p1 = c.convert_to_absolute_coord(p0 + (v1+v2))
+                p2 = c.convert_to_absolute_coord((p0 + v1) + v2)
                 assert points_close(p1, p2), f"Failed for {p1} and {p2}"
-                p1 = c.convert_to_figure_coord(v1 + (p0+v2))
-                p2 = c.convert_to_figure_coord((v1 + p0) + v2)
+                p1 = c.convert_to_absolute_coord(v1 + (p0+v2))
+                p2 = c.convert_to_absolute_coord((v1 + p0) + v2)
                 assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 def test_linear_vector_addition():
@@ -150,8 +163,8 @@ def test_linear_vector_addition():
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
             for v2 in vectors:
-                p1 = c.convert_to_figure_coord(v1) + c.convert_to_figure_coord(v2)
-                p2 = c.convert_to_figure_coord(v1+v2)
+                p1 = c.convert_to_absolute_coord(v1) + c.convert_to_absolute_coord(v2)
+                p2 = c.convert_to_absolute_coord(v1+v2)
                 assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 
@@ -162,8 +175,8 @@ def test_commutative_vector_addition():
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
             for v2 in vectors:
-                p1 = c.convert_to_figure_coord(v1 + v2)
-                p2 = c.convert_to_figure_coord(v2 + v1)
+                p1 = c.convert_to_absolute_coord(v1 + v2)
+                p2 = c.convert_to_absolute_coord(v2 + v1)
                 assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 def test_commutative_vector_multiplication():
@@ -172,8 +185,8 @@ def test_commutative_vector_multiplication():
         c.add_unit("newunit", Width(.5, "figure") + Height(.6, "figure"), Point(.3, .3))
         c.add_axis("ax1", l, Point(.9, .95))
         for v1 in vectors:
-            p1 = c.convert_to_figure_coord(v1*3)
-            p2 = c.convert_to_figure_coord(3*v1)
+            p1 = c.convert_to_absolute_coord(v1*3)
+            p2 = c.convert_to_absolute_coord(3*v1)
             assert points_close(p1, p2), f"Failed for {p1} and {p2}"
 
 def test_example_canvas():

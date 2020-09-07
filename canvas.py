@@ -7,6 +7,7 @@ import fitz as mupdf # PyMuPDF
 import tempfile
 import atexit
 import os
+import math
 
 # TODO add rotation
 
@@ -174,6 +175,17 @@ class Vector:
             return BinopVector(self, '>>', other)
     def __lshift__(self, other):
         return other >> self
+    def __matmul__(self, other):
+        if self.coordinate == "absolute":
+            c = math.cos(math.radians(other))
+            s = math.sin(math.radians(other))
+            return Vector(self.x * c - self.y * s ,
+                          self.x * s + self.y * c,
+                          self.coordinate)
+        else:
+            return BinopVector(self, '@', other)
+    def __rmatmul__(self, other):
+        return self @ other
     def width(self):
         """Returns a Width object representing the x component of the Vector."""
         return Width(self.x, self.coordinate)
@@ -208,8 +220,9 @@ class MetaBinop:
                 '*': lambda lhs,rhs : lhs * rhs,
                 '/': lambda lhs,rhs : lhs / rhs,
                 '>>': lambda lhs,rhs : lhs >> rhs,
-                '|': lambda lhs,rhs : lhs | rhs}
-    @pns.accepts(pns.Unchecked, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '|']), pns.Or(Metric, pns.Number))
+                '|': lambda lhs,rhs : lhs | rhs,
+                '@': lambda lhs,rhs : lhs @ rhs}
+    @pns.accepts(pns.Unchecked, pns.Or(Metric, pns.Number), pns.Set(['+', '-', '*', '/', '>>', '|', '@']), pns.Or(Metric, pns.Number))
     def __new__(cls, lhs, op, rhs):
         obj = object.__new__(cls)
         obj.lhs = lhs
@@ -299,13 +312,18 @@ class BinopVector(MetaBinop,Vector):
             raise ValueError(f"Invalid meet >> between {repr(self)} and {repr(other)}.")
     def __lshift__(self, rhs):
         return rhs >> self
+    @pns.accepts(pns.Self, pns.Number)
+    def __matmul__(self, rhs):
+        return BinopVector(self, '@', rhs)
+    def __rmatmul__(self, rhs):
+        rhs @ self
     def width(self):
         """Returns a BinopVector object representing the x component of the Vector."""
         # Handle cases where we use a scalar instead of a vector
-        return ((Point(0, 0, "figure") + self) >> Point(0, 0, "figure")) - Point(0, 0, "figure")
+        return ((Point(0, 0, "absolute") + self) >> Point(0, 0, "absolute")) - Point(0, 0, "absolute")
     def height(self):
         """Returns a BionpVector object representing the y component of the Vector."""
-        return ((Point(0, 0, "figure") + self) << Point(0, 0, "figure")) - Point(0, 0, "figure")
+        return ((Point(0, 0, "absolute") + self) << Point(0, 0, "absolute")) - Point(0, 0, "absolute")
     def flipx(self):
         return (-self) >> self
     def flipy(self):
