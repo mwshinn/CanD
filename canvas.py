@@ -63,14 +63,26 @@ class Point:
         return f'{self.__class__.__name__}({self.x}, {self.y}, "{self.coordinate}")'
     @pns.accepts(pns.Self, Metric)
     def __add__(self, other):
+        """Add together a point and a vector.
+
+        `other` should be a Vector, otherwise this function will throw an error.
+
+        Returns a Point
+        """
         if isinstance(other, Vector):
             if self.coordinate == other.coordinate and self.coordinate != "various":
                 return Point(self.x + other.x, self.y + other.y, self.coordinate)
             else:
                 return BinopPoint(self, '+', other)
-        raise ValueError(f"Invalid addition between {repr(self)} and {repr(other)}.")
+        raise ValueError(f"Invalid addition between {self!r} and {other!r}.")
     @pns.accepts(pns.Self, Metric)
     def __sub__(self, other):
+        """Find the vector which connects two points.
+
+        `other` should be a Point, otherwise this function will throw an error.
+
+        Returns a Vector.
+        """
         if isinstance(other, Vector):
             if self.coordinate == other.coordinate:
                 return Point(self.x - other.x, self.y - other.y, self.coordinate)
@@ -81,24 +93,48 @@ class Point:
                 return Vector(self.x - other.x, self.y - other.y, self.coordinate)
             else:
                 return BinopVector(self, '-', other)
-        raise ValueError(f"Invalid subtraction between {repr(self)} and {repr(other)}.")
+        raise ValueError(f"Invalid subtraction between {self!r} and {other!r}.")
     def __eq__(self, other):
+        """Determine if two Point objects are equal.  
+
+        `other` should be another Point object.
+
+        Returns True or False.
+        """
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
     def __iter__(self):
         yield self.x
         yield self.y
     def __rshift__(self, other):
+        """Take the x coordinate of this point and the y coordinate of another point.
+
+        `other` should be a Point, otherwise this function will throw an error.
+
+        Returns a Point.
+        """
         if not isinstance(other, Point):
-            raise ValueError(f"Invalid meet >> operation between {repr(self)} and {repr(other)}.")
+            raise ValueError(f"Invalid meet >> operation between {self!r} and {other!r}.")
         if self.coordinate == other.coordinate:
             return Point(self.x, other.y, self.coordinate)
         else:
             return BinopPoint(self, '>>', other)
     def __lshift__(self, other):
+        """Take the y coordinate of this point and the x coordinate of another point.
+
+        `other` should be a Point, otherwise this function will throw an error.
+
+        Returns a Point.
+        """
         return other >> self
     def __or__(self, other):
+        """Return the point in the center of the two given points
+
+        `other` should be a Point, otherwise this function will throw an error.
+
+        Returns a Point.
+        """
         if not isinstance(other, Point):
-            raise ValueError(f"Invalid mean | operation between {repr(self)} and {repr(other)}.")
+            raise ValueError(f"Invalid mean | operation between {self!r} and {other!r}.")
         if self.coordinate == other.coordinate:
             return Point((self.x+other.x)/2, (self.y+other.y)/2, self.coordinate)
         else:
@@ -140,6 +176,10 @@ class Vector:
         return f'{self.__class__.__name__}({self.x}, {self.y}, "{self.coordinate}")'
     @pns.accepts(pns.Self, Metric)
     def __add__(self, other):
+        """Add a vector to a Point or another Vector.
+
+        If `other` is a Point, return a Point.  If `other` is a Vector, return a Vector.
+        """
         if isinstance(other, Point):
             return other + self
         elif isinstance(other, Vector):
@@ -150,32 +190,82 @@ class Vector:
         raise ValueError(f"Invalid addition between {repr(self)} and {repr(other)}.")
     @pns.accepts(pns.Self, pns.Self)
     def __sub__(self, other):
+        """Vector subtraction.
+
+        `other` should be a Vector.  
+
+        Return a Vector.
+
+        Subtracting a vector is equivalent to adding the negative of the vector.
+        """
         if self.coordinate == other.coordinate:
             return Vector(self.x - other.x, self.y - other.y, self.coordinate)
         else:
             return BinopVector(self, '-', other)
     @pns.accepts(pns.Self, pns.Number)
     def __mul__(self, other):
+        """Multiply a vector by a scalar.
+
+        `other` should be a scalar by which to multiply each component of the vector.
+
+        Return a Vector.
+        """
         return Vector(self.x * other, self.y * other, self.coordinate)
     @pns.accepts(pns.Self, pns.Number)
     def __rmul__(self, other):
+        self.__mul__.__doc__
         return self * other
+    @pns.accepts(pns.Self)
     def __neg__(self):
+        """Take the negative of a vector.
+
+        This is equivalent to rotating the vector by 180 degrees, or
+        to multiplying each component by -1.
+
+        Return a Vector.
+        """
         return -1* self
     @pns.accepts(pns.Self, pns.Number)
     @pns.requires("other != 0")
     def __truediv__(self, other):
+        """Divide a vector by a scalar.
+
+        `other` should be a non-zero scalar by which to divide each component of the vector.
+
+        Return a Vector.
+        """
         return Vector(self.x / other, self.y / other, self.coordinate)
+    @pns.accepts(pns.Self, pns.Self)
     def __rshift__(self, other):
+        """Take the x coordinate of this vector and the y coordinate of another vector.
+
+        `other` should be a Vector, otherwise this function will throw an error.
+
+        Returns a Vector.
+        """
         if not isinstance(other, Vector):
             raise ValueError(f"Invalid meet >> operation between {repr(self)} and {repr(other)}.")
         if self.coordinate == other.coordinate:
             return Vector(self.x, other.y, self.coordinate)
         else:
             return BinopVector(self, '>>', other)
+    @pns.accepts(pns.Self, pns.Self)
     def __lshift__(self, other):
+        """Take the y coordinate of this vector and the x coordinate of another vector.
+
+        `other` should be a Vector, otherwise this function will throw an error.
+
+        Returns a Vector.
+        """
         return other >> self
+    @pns.accepts(pns.Self, pns.Number)
     def __matmul__(self, other):
+        """Rotate the vector by some amount, specified in degrees.
+
+        `other` should be a scalar, in units of degrees.
+
+        Returns a Vector.
+        """
         if self.coordinate == "absolute":
             c = math.cos(math.radians(other))
             s = math.sin(math.radians(other))
@@ -184,19 +274,34 @@ class Vector:
                           self.coordinate)
         else:
             return BinopVector(self, '@', other)
+    @pns.accepts(pns.Self, pns.Number)
     def __rmatmul__(self, other):
+        self.__matmul__.__doc__
         return self @ other
+    @pns.accepts(pns.Self)
     def width(self):
         """Returns a Width object representing the x component of the Vector."""
         return Width(self.x, self.coordinate)
+    @pns.accepts(pns.Self)
     def height(self):
         """Returns a Height object representing the y component of the Vector."""
         return Height(self.y, self.coordinate)
+    @pns.accepts(pns.Self)
     def flipx(self):
+        """Returns a Vector reflected across the y-axis."""
         return Vector(-self.x, self.y, self.coordinate)
+    @pns.accepts(pns.Self)
     def flipy(self):
+        """Returns a Vector reflected across the x-axis."""
         return Vector(self.x, -self.y, self.coordinate)
+    @pns.accepts(pns.Self, pns.Self)
     def __eq__(self, other):
+        """Determine if two Vector objects are equal.  
+
+        `other` should be another Vector object.
+
+        Returns True or False.
+        """
         return (self.x == other.x) and (self.y == other.y) and (self.coordinate == other.coordinate)
     def __iter__(self):
         yield self.x
@@ -207,9 +312,23 @@ class Vector:
         yield Width(.5)
 
 def Width(x, coordinate="default"):
+    """A vector with a 0 in the y coordinate.
+
+    Returns a Vector with `x` in the x coordinate and 0 in the y
+    coordinate, within the coordinate system `coordinate`.
+
+    This is included for backward compatibility.
+    """
     return Vector(x, 0, coordinate)
 
 def Height(y, coordinate="default"):
+    """A vector with a 0 in the x coordinate.
+
+    Returns a Vector with 0 in the x coordinate and `y` in the y
+    coordinate, within the coordinate system `coordinate`.
+
+    This is included for backward compatibility.
+    """
     return Vector(0, y, coordinate)
 
 @pns.paranoidclass
@@ -428,7 +547,6 @@ class Canvas:
             self.__class__._fm = matplotlib.font_manager.FontManager()
         fp = matplotlib.font_manager.FontProperties(weight=weight, style=style, size=size, family=self.font, stretch=stretch)
         fontfile = self.__class__._fm.findfont(fp, fallback_to_default=False)
-        print(fontfile, stretch, size, style, weight)
         fprops = matplotlib.font_manager.FontProperties(fname=fontfile, size=size)
         return fprops
     @pns.accepts(pns.Self, pns.Maybe(pns.String), pns.String)
@@ -512,8 +630,21 @@ class Canvas:
     def ax(self, name):
         """Return the axis of name `name`."""
         return self.axes[name]
-    #@pns.accepts(pns.Self, pns.String, Point, Point, pns.Unchecked, pns.Or(pns.Tuple(pns.Number, pns.Number), matplotlib.colors.Normalize))
-    def add_colorbar(self, name, pos_ll, pos_ur, cmap, bounds, **kwargs):
+    #@pns.accepts(pns.Self, pns.String, Point, Point, pns.Or(pns.Tuple(pns.Number, pns.Number), matplotlib.colors.Normalize))
+    def add_colorbar(self, name, pos_ll, pos_ur, bounds, **kwargs):
+        """Add a colorbar.
+
+        Name the colorbar `name`, which will be an axis just like any
+        other Canvas axis.  The lower left corner is at `pos_ll` and
+        the upper right corner is at `pos_ur`.  `bounds` should be a
+        tuple of numbers, representing the lower and upper bounds of
+        the colorbar, respectively.  All other arguments are passed
+        directly to matplotlib.colorbar.ColorbarBase.  Of particular
+        note is the argument `cmap`, defining the colormap.
+
+        Return the ColorbarBase object.
+        """
+
         ax = self.add_axis(name, pos_ll, pos_ur)
         if isinstance(bounds, tuple):
             norm = matplotlib.colors.Normalize(vmin=bounds[0], vmax=bounds[1])
@@ -754,7 +885,6 @@ class Canvas:
         """
         if size is None:
             size = self.fontsize
-        print("Adding text", text)
         kwargs = kwargs.copy()
         if 'horizontalalignment' not in kwargs:
             kwargs['horizontalalignment'] = kwargs['ha'] if 'ha' in kwargs else 'center'
@@ -829,7 +959,6 @@ class Canvas:
         for i in range(0, len(els)):
             # Figure out the vertical position of this element of the legend
             y_offset = -1*line_spacing*i
-            print(y_offset)
             # Draw the text
             self.add_text(els[i][0],
                           top_left + sym_width + padding_sep + y_offset,
@@ -977,7 +1106,6 @@ class Canvas:
                 w = (pt_ur-pt_ll).width()
                 pt_ll = pt_ll + (w - size_x)/2
                 pt_ur = pt_ur - (w - size_x)/2
-            print("Spacing", spacing_x)
         if size_y is not None:
             size_y = self.convert_to_absolute_length(size_y)
             if nrows > 1:
@@ -987,7 +1115,6 @@ class Canvas:
                 h = (pt_ur-pt_ll).height()
                 pt_ll = pt_ll + (h - size_y)/2
                 pt_ur = pt_ur - (h - size_y)/2
-            print("Spacing", spacing_y)
         spacing_x = self.convert_to_absolute_length(spacing_x)
         spacing_y = self.convert_to_absolute_length(spacing_y)
         posx = self._grid_space(pt_ll.x, pt_ur.x, spacing_x.x, ncols)
@@ -1049,7 +1176,6 @@ class Canvas:
                         pos_ur = image[2]
                         # subimg.thumbnail(size)
                         bounds = (int(imwidth*pos_ll.x), int(imheight*(1-pos_ur.y)), int(imwidth*pos_ur.x), int(imheight*(1-pos_ll.y)))
-                        print(bounds)
                         subimg_size = (bounds[2]-bounds[0], bounds[3]-bounds[1])
                         subimg = subimg.resize(subimg_size, PIL.Image.LANCZOS)
                         img.alpha_composite(subimg, bounds[0:2])
@@ -1063,8 +1189,6 @@ class Canvas:
                 pos_ll = image[1]
                 pos_ur = image[2]
                 rect = mupdf.Rect(pwidth*pos_ll.x, pheight*(1-pos_ur.y), pwidth*pos_ur.x, pheight*(1-pos_ll.y))
-                print(rect)
-                print(page.bound())
                 #rect = mupdf.Rect(0.0, 0.0, 200.0, 200.0)
                 #imagedoc = mupdf.open(image[0])
                 #imagepdf_bytes = imagedoc.convertToPDF()
@@ -1118,11 +1242,9 @@ class Canvas:
         if width is None:
             height = self.convert_to_figure_length(height.height())
             width = Width(height.y * (self.size[1]/self.size[0]) * (imwidth/imheight), "figure")
-            print("width is", width*self.size[0], height*self.size[1])
         elif height is None:
             width = self.convert_to_figure_length(width.width())
             height = Height(width.x * (self.size[0]/self.size[1]) * (imheight/imwidth), "figure")
-            print("Height is", height*self.size[1], width*self.size[0])
         else:
             height = self.convert_to_figure_length(height.height())
             width = self.convert_to_figure_length(width.width())
@@ -1176,18 +1298,6 @@ class Canvas:
         
 
 
-        
-# c = Canvas(6,6)
-# c.add_axis("axname", Point(.05, .05), Point(.95, .95))
-# c.ax("axname").plot([1, 2, 3])
-# #coords = c.add_legend(Point(.1, .9), [LegendItem("M1", "k", linestyle='-'), LegendItem("M2", "r", linestyle='-', lw=7), LegendItem("M3", "r", linestyle='-', lw=2, markersize=10, marker="o"), LegendItem("M4", "r", linestyle='-', lw=2, markersize=10, marker="o")])
-# c.add_legend(Point(.4, .9), [LegendItem("M1", "k"), LegendItem("M2", "r"), LegendItem("M3", "b")], fontsize=12)
-# c.add_image("smiley.png", Point(0, 1), width=Width(1), verticalalignment="top", horizontalalignment="left")
-# #c.save("output.pdf")
-# c.show()
-# #plt.show()
-
 
 # TODO:
 # TODO add "thin" to font-manager.py in matplotlib line 81
-# Jupyter support: https://ipython.readthedocs.io/en/stable/api/generated/IPython.display.html
