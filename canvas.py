@@ -2,14 +2,15 @@ import paranoid as pns
 import numpy as np
 import matplotlib
 import matplotlib.figure
-import PIL
+from PIL import Image, PngImagePlugin
 import fitz as mupdf # PyMuPDF
 import tempfile
 import atexit
 import os
 import math
 
-# TODO add rotation
+__version__ = "0.0.1"
+_idstr = f"CanD {__version__} (github.com/mwshinn/cand)"
 
 # If IPython is installed, try to import the display code for it.
 try:
@@ -652,7 +653,7 @@ class Canvas:
             norm = bounds
         size = self.convert_to_absolute_coord(pos_ur - pos_ll)
         orientation = "horizontal" if size.x > size.y else "vertical"
-        colorbar = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation=orientation, **kwargs)
+        colorbar = matplotlib.colorbar.ColorbarBase(ax, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
     @pns.returns(pns.Boolean)
@@ -1143,7 +1144,8 @@ class Canvas:
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
         assert (dpi is None) or filename.endswith(".png"), "DPI argument only supported for png files"
         self.fix_fonts()
-        # Lazy importing of matplotlib backend
+        matplotlib.rc('pdf', fonttype=42) # This embeds (rather than subsets) all fonts in PDFs.
+        # Lazy importing of matplotlib backend.  See https://matplotlib.org/3.3.1/tutorials/introductory/usage.html#the-builtin-backends
         if self.backend == "latex":
             from matplotlib.backends.backend_pgf import FigureCanvasPgf
             mplcanvas = FigureCanvasPgf(self.figure)
@@ -1157,7 +1159,8 @@ class Canvas:
         with matplotlib.rc_context(rc=self.localRc):
             self.figure.savefig(filename, dpi=dpi, *args, **kwargs)
         if filetype == "png":
-            with PIL.Image.open(filename) as img:
+            with Image.open(filename) as img:
+                imgtext = img.text
                 img = img.convert('RGBA')
                 for image in self.images:
                     if image[0].endswith(".pdf"): # Convert pdf to png first
@@ -1168,7 +1171,7 @@ class Canvas:
                         page.getPixmap(alpha=True, matrix=mupdf.Matrix(zoom, zoom)).writeImage(imgpath)
                     else:
                         imgpath = image[0]
-                    with PIL.Image.open(imgpath) as subimg:
+                    with Image.open(imgpath) as subimg:
                         subimg = subimg.convert('RGBA')
                         imwidth = img.size[0]
                         imheight = img.size[1]
@@ -1177,9 +1180,14 @@ class Canvas:
                         # subimg.thumbnail(size)
                         bounds = (int(imwidth*pos_ll.x), int(imheight*(1-pos_ur.y)), int(imwidth*pos_ur.x), int(imheight*(1-pos_ll.y)))
                         subimg_size = (bounds[2]-bounds[0], bounds[3]-bounds[1])
-                        subimg = subimg.resize(subimg_size, PIL.Image.LANCZOS)
+                        subimg = subimg.resize(subimg_size, Image.LANCZOS)
                         img.alpha_composite(subimg, bounds[0:2])
-                img.save(filename)
+                existing_meta = ("; "+imgtext['Software']) if 'Software' in imgtext.keys() else ""
+                imgtext["Software"] = f"{_idstr}{existing_meta}"
+                newmeta = PngImagePlugin.PngInfo()
+                for k,v in imgtext.items():
+                    newmeta.add_text(k, v)
+                img.save(filename, pnginfo=newmeta)
         elif filetype == "pdf":
             pdf = mupdf.open(filename)
             page = pdf[0]
@@ -1199,6 +1207,9 @@ class Canvas:
                     page.showPDFpage(rect, src=toinsert, keep_proportion=False)
                 else:
                     page.insertImage(rect, filename=image[0], keep_proportion=False)
+            pdf.metadata['creator'] = f"{_idstr}; {pdf.metadata['creator']}"
+            pdf.metadata['producer'] = f"{_idstr}; {pdf.metadata['producer']}"
+            pdf.setMetadata(pdf.metadata)
             pdf.save(pdf.name, deflate=True, incremental=True)
             pdf.close()
     def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment=None, verticalalignment=None, ha=None, va=None):
@@ -1236,7 +1247,7 @@ class Canvas:
             imwidth = page.bound().width
             imheight = page.bound().height
         else:
-            with PIL.Image.open(filename) as img:
+            with Image.open(filename) as img:
                 imwidth = img.size[0]
                 imheight = img.size[1]
         if width is None:
@@ -1294,10 +1305,12 @@ class Canvas:
         if in_jupyter:
             IPython_display(IPython_Image(filename=tmp))
         else:
-            PIL.Image.open(tmp).show()
+            Image.open(tmp).show()
         
 
 
 
 # TODO:
 # TODO add "thin" to font-manager.py in matplotlib line 81
+# TODO set metadata for png/pdf export
+# TODO test all fonts for all backends, and figure out pgf backend
