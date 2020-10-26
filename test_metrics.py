@@ -1,4 +1,4 @@
-from canvas import *
+from cand import *
 import numpy as np
 
 lower_points = [Point(.3, .2, "newunit"),
