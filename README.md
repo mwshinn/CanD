@@ -31,22 +31,22 @@ elements in a figure within Python and Matplotlib.  It provides:
   scatterplot to a plot in a different subpanel.
 - **Easy positioning of raster (.png) images.** Currently, importing
   an image directly into matplotlib is difficult and results in
-  aliasing artifacts.  Canvas allows .png images to be positioned just
+  aliasing artifacts.  CanD allows .png images to be positioned just
   like any other plot element.
 
-Canvas does **not** provide:
+CanD does **not** provide:
 
-- Methods for plotting data.  Canvas gives you a reference to the axis
+- Methods for plotting data.  CanD gives you a reference to the axis
   object, with which you may use any of matplotlib's standard plotting
   functions. [Seaborn](https://seaborn.pydata.org/) is a popular
   library which creates elegant and attractive plots with
-  little effort, and is mostly compatible with Canvas.
-- Zero-thought layouts.  Canvas will not find a good layout for you.
-  If you want automatically-positioned subplots, Canvas is not the
-  right choice for you. Canvas will, however, make it easy to
+  little effort, and is mostly compatible with CanD.
+- Zero-thought layouts.  CanD will not find a good layout for you.
+  If you want automatically-positioned subplots, CanD is not the
+  right choice for you. CanD will, however, make it easy to
   implement a layout you have in your mind.
 
-Canvas is currently pre-alpha software.  Examples and documentation
+CanD is currently pre-alpha software.  Examples and documentation
 will be available eventually.
 
 Example
@@ -113,7 +113,7 @@ another.
 Installation
 ============
 
-Canvas depends on:
+CanD depends on:
 
 - numpy
 - matplotlib
