@@ -8,6 +8,7 @@ import tempfile
 import atexit
 import os
 from .metrics import Metric, Vector, Point, BinopPoint, BinopVector, Height, Width
+from .fontant import find_font, find_font_family, MultipleFontsFoundError, NoFontFoundError
 from ._version import __version__
 
 _idstr = f"CanD {__version__} (github.com/mwshinn/cand)"
@@ -37,26 +38,18 @@ class Canvas:
     to make layouts and fonts trivial.
 
     """
-    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String, pns.String, pns.Number, pns.Maybe(pns.Number))
+    @pns.accepts(pns.Self, pns.Number, pns.Number, pns.String)
     @pns.paranoidconfig(unit_test=False)
-    def __init__(self, size_x, size_y, unit="inches", font="Helvetica Neue LT Std", fontsize=8, fontsize_ticks=None):
+    def __init__(self, size_x, size_y, unit="inches"):
         self.axes = dict()
         self.default_unit = "figure"
-        self.fontsize = fontsize
-        self.fontsize_ticks = fontsize_ticks if fontsize_ticks is not None else fontsize
-        self.font = font
+        self.fontsize = 8
+        self.fontsize_ticks = 8
         self.images = []
         self.tmpfiles = []
+        self.font = dict(name="DejaVu Sans", stretch="normal")
         atexit.register(self._cleanup)
         self.localRc = {}
-        # Set up font sizes
-        self.localRc['font.size'] = fontsize
-        self.localRc['axes.titlesize'] = fontsize
-        self.localRc['axes.labelsize'] = fontsize
-        self.localRc['xtick.labelsize'] = fontsize_ticks or fontsize
-        self.localRc['ytick.labelsize'] = fontsize_ticks or fontsize
-        self.localRc['legend.fontsize'] = fontsize
-        self.localRc['figure.titlesize'] = fontsize
         
         self.backend = "default"
         # Create default units.  Dictionary of tuples indexed by unit
@@ -103,16 +96,89 @@ class Canvas:
     def _cleanup(self):
         for f in self.tmpfiles:
             os.remove(f)
-    def _get_font(self, weight="roman", style="normal", size=None, stretch="normal"):
+    def set_font(self, name, *, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, ticksize=None):
+        if size:
+            # Set up font sizes
+            self.localRc['font.size'] = size
+            self.localRc['axes.titlesize'] = size
+            self.localRc['axes.labelsize'] = size
+            self.localRc['xtick.labelsize'] = ticksize or size
+            self.localRc['ytick.labelsize'] = ticksize or size
+            self.localRc['legend.fontsize'] = size
+            self.localRc['figure.titlesize'] = size
+            self.fontsize = size
+            self.fontsize_ticks = ticksize or size
+        newfont = {}
+        newfont['name'] = name
+        if weight is not None:
+            newfont['weight'] = weight
+        if style is not None:
+            newfont['style'] = style
+        if stretch is not None:
+            newfont['stretch'] = stretch
+        if foundry is not None:
+            newfont['foundry'] = foundry
+        if special is not None:
+            newfont['special'] = special
+        if monospace is not None:
+            newfont['monospace'] = monospace
+        if opticalsize is not None:
+            newfont['opticalsize'] = opticalsize
+        print(newfont)
+        try:
+            self._get_font(**newfont) # Run once to confirm the font is valid
+        except MultipleFontsFoundError as e:
+            e.args = ("Font specified in call to Canvas.set_font() was not specific enough.\n"+e.args[0],) + e.args[1:]
+            raise
+        self.font = newfont
+        
+    def _get_font(self, name=None, *, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None):
+        if name is None:
+            defaultfont = self.font.copy()
+        else:
+            defaultfont = {}
+        # Otherwise, go through and make any necessary changes to the default
+        # Canvas font.
+        if name is not None:
+            defaultfont['name'] = name
+        if weight is not None:
+            defaultfont['weight'] = weight
+        if style is not None:
+            defaultfont['style'] = style
+        if stretch is not None:
+            defaultfont['stretch'] = stretch
+        if foundry is not None:
+            defaultfont['foundry'] = foundry
+        if special is not None:
+            defaultfont['special'] = special
+        if monospace is not None:
+            defaultfont['monospace'] = monospace
+        if opticalsize is not None:
+            defaultfont['opticalsize'] = opticalsize
         if size is None:
             size = self.fontsize
-        # Add a font manager as a static variable because it is a
-        # singleton in matplotlib but it takes forever to construct
-        # for some reason.
-        if not hasattr(self.__class__, "_fm"):
-            self.__class__._fm = matplotlib.font_manager.FontManager()
-        fp = matplotlib.font_manager.FontProperties(weight=weight, style=style, size=size, family=self.font, stretch=stretch)
-        fontfile = self.__class__._fm.findfont(fp, fallback_to_default=False)
+        print(defaultfont)
+        # If we just want the bold or italic versions of a font, we can use the
+        # font family method.
+        if ('weight' not in defaultfont.keys() or defaultfont['weight'] == "bold") and \
+           ('style' not in defaultfont.keys() or defaultfont['style'] in ["italic", "oblique"]):
+            family = find_font_family(name=defaultfont['name'], stretch=defaultfont.get('stretch', None),
+                                     foundry=defaultfont.get('foundry', None), special=defaultfont.get('special', None), opticalsize=defaultfont.get('opticalsize', None),
+                                      monospace=defaultfont.get('monospace', None))
+            print(family)
+            if 'weight' not in defaultfont.keys() and 'style' not in defaultfont.keys():
+                key = "regular"
+            elif 'weight' in defaultfont.keys() and 'style' not in defaultfont.keys():
+                key = "bold"
+            elif 'weight' not in defaultfont.keys() and 'style' in defaultfont.keys():
+                key = "italic"
+            else:
+                key = "bolditalic"
+            if key in family.keys():
+                fprops = matplotlib.font_manager.FontProperties(fname=family[key]['fname'], size=size)
+                return fprops
+        # If not, we use the more heavy duty font selection tool
+        fontfile = find_font(**defaultfont)['fname']
         fprops = matplotlib.font_manager.FontProperties(fname=fontfile, size=size)
         return fprops
     @pns.accepts(pns.Self, pns.Maybe(pns.String), pns.String)
@@ -434,7 +500,7 @@ class Canvas:
         arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.trans_absolute,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
-    def add_text(self, text, pos, weight="roman", size=None, stretch="normal", style="normal", **kwargs):
+    def add_text(self, text, pos, fontname=None, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, **kwargs):
         """Add text at a given point.
 
         Draw the text `text` at Point `pos`.  The argument `weight`
@@ -459,7 +525,9 @@ class Canvas:
         pt = self.convert_to_absolute_coord(pos)
         # Check valid font names with matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
-        fprops = self._get_font(weight=weight, size=size, stretch=stretch, style=style)
+        fprops = self._get_font(name=fontname, weight=weight, size=size,
+                                stretch=stretch, style=style, foundry=foundry, special=special,
+                                opticalsize=opticalsize, monospace=monospace)
         self.figure.text(pt.x, pt.y, text, transform=self.trans_absolute,
                          fontproperties=fprops, fontsize=size, **kwargs)
     def add_line(self, frm, to, **kwargs):
@@ -575,8 +643,14 @@ class Canvas:
         manually as well.
         """
         fprops = self._get_font()
-        fprops_bold = self._get_font(weight="bold")
-        fprops_it = self._get_font(style="italic")
+        try:
+            fprops_bold = self._get_font(weight="bold")
+        except (MultipleFontsFoundError, NoFontFoundError):
+            fprops_bold = fprops
+        try:
+            fprops_it = self._get_font(style="italic")
+        except (MultipleFontsFoundError, NoFontFoundError):
+            fprops_it = fprops
         fprops_ticks = self._get_font(size=self.fontsize_ticks)
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():

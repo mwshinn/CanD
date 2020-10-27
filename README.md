@@ -1,7 +1,7 @@
 CanD - Easily create complex layouts in Matplotlib
 --------------------------------------------------
 
-<img align="right" src="cand-logo.png" width="30%" padding="50px">
+<img align="right" src="https://raw.githubusercontent.com/mwshinn/CanD/master/cand-logo.png" width="30%" padding="50px">
 
 *Do you plot in Matplotlib, build your diagrams in Inkscape or
 Illustrator, and then lay out your figures in InDesign or Powerpoint?
@@ -59,7 +59,8 @@ import seaborn as sns
 import numpy as np
 
 # Create a canvas 10 cm x 15 cm.  Use Lucida as the font.
-c = Canvas(15, 10, "cm", font="Lucida Std")
+c = Canvas(15, 10, "cm")
+c.set_font("Lucida Std")
 
 # Add an axis from the point (2,2) to (14,8) in centimeters.  Name it "sinewave", 
 # and plot a sine wave on it.
