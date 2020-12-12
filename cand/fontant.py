@@ -436,10 +436,18 @@ class NoFontFoundError(ValueError):
 class MultipleFontsFoundError(ValueError):
     pass
 
+_find_font_cache = {}
+
 def find_font(name, *, weight=None, style=None, stretch=None, opticalsize=None, monospace=None, foundry=None, special=None, multiple=False):
+    global _find_font_cache
+    cachename = (name, weight, style, stretch, opticalsize, monospace, foundry, special, multiple)
+    if cachename in _find_font_cache.keys():
+        return _find_font_cache[cachename]
     # Check if they passed a filename for the name.  If so, return that.
     if name is not None and os.path.isfile(name):
-        return loadttf(name)
+        loadedttf = loadttf(name)
+        _find_font_cache[cachename] = loadedttf
+        return loadedttf
     # If not, firs, find all fonts which contain the specified name as a substring.
     fonts = [loadttf(p) for p in get_fonts()]
     fonts = [f for f in fonts if name.lower() in f["full_name"].lower() or
@@ -512,11 +520,18 @@ def find_font(name, *, weight=None, style=None, stretch=None, opticalsize=None, 
             matchingfonts = fonts[0:1]
             print(warningtext)
     if multiple:
-        return fonts
+        loadedttf = fonts
     else:
-        return fonts[0]
+        loadedttf = fonts[0]
+    _find_font_cache[cachename] = loadedttf
+    return loadedttf
 
+_find_font_family_cache = {}
 def find_font_family(name, *, stretch=None, opticalsize=None, monospace=None, foundry=None, special=None):
+    global _find_font_family_cache
+    cachename = (name, stretch, opticalsize, monospace, foundry, special)
+    if cachename in _find_font_family_cache.keys():
+        return _find_font_family_cache[cachename]
     # Get all the fonts which match the user's search criteria
     allfonts = find_font(name, stretch=stretch, opticalsize=opticalsize, monospace=monospace, foundry=foundry, special=special, multiple=True)
     # Check to make sure that only one family was returned.
@@ -616,6 +631,7 @@ def find_font_family(name, *, stretch=None, opticalsize=None, monospace=None, fo
             warningtext += "    " + matchingfonts[0]['fname'] + "\n"
             matchingfonts = matchingfonts[0:1]
             print(warningtext)
+        _find_font_family_cache[cachename] = matchingfonts[0]
         return matchingfonts[0]
     styles = {}
     styles['regular'] = find_member(allfonts, bold=False, italic=False)
@@ -631,6 +647,7 @@ def find_font_family(name, *, stretch=None, opticalsize=None, monospace=None, fo
         styles['bolditalic'] = find_member(allfonts, bold=True, italic=True)
     except:
         print("Warning, bold-italic font not found")
+    _find_font_family_cache[cachename] = styles
     return styles
 
 #TODO: Neutraface, EB Garamond, penumbra, gotham, fell, stone sans, univers arkandis (chooses condensed by default), Bell

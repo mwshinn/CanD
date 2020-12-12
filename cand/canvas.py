@@ -157,7 +157,6 @@ class Canvas:
             defaultfont['opticalsize'] = opticalsize
         if size is None:
             size = self.fontsize
-        print(defaultfont)
         # If we just want the bold or italic versions of a font, we can use the
         # font family method.
         if ('weight' not in defaultfont.keys() or defaultfont['weight'] == "bold") and \
@@ -165,7 +164,6 @@ class Canvas:
             family = find_font_family(name=defaultfont['name'], stretch=defaultfont.get('stretch', None),
                                      foundry=defaultfont.get('foundry', None), special=defaultfont.get('special', None), opticalsize=defaultfont.get('opticalsize', None),
                                       monospace=defaultfont.get('monospace', None))
-            print(family)
             if 'weight' not in defaultfont.keys() and 'style' not in defaultfont.keys():
                 key = "regular"
             elif 'weight' in defaultfont.keys() and 'style' not in defaultfont.keys():
@@ -633,7 +631,7 @@ class Canvas:
                     offset += l[2]
                 elif isinstance(l[2], Point):
                     offset = l[2]
-            self.add_text(l[0], loc+offset, weight="heavy", size=size)
+            self.add_text(l[0], loc+offset, weight="bold", size=size)
     def fix_fonts(self):
         """Convert all text to the desired font.
 
