@@ -282,6 +282,8 @@ class Canvas:
             norm = bounds
         size = self.convert_to_absolute_coord(pos_ur - pos_ll)
         orientation = "horizontal" if size.x > size.y else "vertical"
+        if 'cmap' in kwargs:
+            kwargs['cmap'] = matplotlib.cm.get_cmap(kwargs['cmap'])
         colorbar = matplotlib.colorbar.ColorbarBase(ax, norm=norm, orientation=orientation, **kwargs)
         return colorbar
     @pns.accepts(pns.Self, pns.String)
@@ -625,13 +627,13 @@ class Canvas:
             offset = Vector(-.15, .12, "absolute")
             unit_name = "axis_"+l[1] if l[1] in self.axes.keys() else l[1]
             assert self.is_unit(unit_name), f"Invalid unit or axis {l[1]} in figure label"
-            loc = Point(0, 1, unit_name)
+            loc = Point(0, 1, unit_name) + offset
             if len(l) == 3:
                 if isinstance(l[2], Vector):
-                    offset += l[2]
+                    loc += l[2]
                 elif isinstance(l[2], Point):
-                    offset = l[2]
-            self.add_text(l[0], loc+offset, weight="bold", size=size)
+                    loc = l[2]
+            self.add_text(l[0], loc, weight="bold", size=size)
     def fix_fonts(self):
         """Convert all text to the desired font.
 
@@ -849,6 +851,50 @@ class Canvas:
             pdf.setMetadata(pdf.metadata)
             pdf.save(pdf.name, deflate=True, incremental=True)
             pdf.close()
+    def debug_grid(self, spacing, origin=Point(0, 0, "absolute"), **kwargs):
+        bottom_left = Point(0, 0, "figure")
+        top_right = Point(1, 1, "figure")
+        args = {"zorder": 100, "alpha": .2, "c": "k"}
+        args.update(kwargs)
+        i = 0
+        while True:
+            xpos = i*spacing.width() + origin
+            if self.convert_to_figure_coord(xpos).x >= 0:
+                self.add_line(xpos >> bottom_left, xpos >> top_right, **args)
+                print("1")
+            else:
+                print("2")
+                break
+            print(i, xpos)
+            i -= 1
+        i = 0
+        while True:
+            xpos = i*spacing.width() + origin
+            if self.convert_to_figure_coord(xpos).x <= 1:
+                self.add_line(xpos >> bottom_left, xpos >> top_right, **args)
+            else:
+                break
+            i += 1
+        i = 0
+        while True:
+            ypos = i*spacing.height() + origin
+            if self.convert_to_figure_coord(ypos).y >= 0:
+                self.add_line(bottom_left >> ypos, top_right >> ypos, **args)
+                print("1")
+            else:
+                print("2")
+                break
+            print(i, xpos)
+            i -= 1
+        i = 0
+        while True:
+            ypos = i*spacing.height() + origin
+            if self.convert_to_figure_coord(ypos).y <= 1:
+                self.add_line(bottom_left >> ypos, top_right >> ypos, **args)
+            else:
+                break
+            i += 1
+
     def add_image(self, filename, pos, unitname=None, height=None, width=None, horizontalalignment=None, verticalalignment=None, ha=None, va=None):
         """Add a png or pdf image to the Canvas.
 
