@@ -488,7 +488,7 @@ class Canvas:
 
         Draw an arrow from Point `frm` to Point `to`.  All other
         keyword arguments are passed directly to
-        matplotlib.patches.FancyArrowPath.  Reasonable default
+        matplotlib.patches.FancyArrowPatch.  Reasonable default
         arguments are given, but these can be overridden.
 
         """
@@ -497,6 +497,10 @@ class Canvas:
         pt_delta = pt_frm - pt_to
         if "linewidth" in kwargs:
             lw = kwargs['linewidth']
+        # if "shrinkA" not in kwargs:
+        #     kwargs['shrinkA'] = 0
+        # if "shrinkB" not in kwargs:
+        #     kwargs['shrinkB'] = 0
         arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.trans_absolute,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
@@ -769,19 +773,20 @@ class Canvas:
             self.add_unit(unitname, (pt_ur-pt_ll), pt_ll)
 
     @pns.accepts(pns.Self, pns.String, pns.Maybe(pns.Natural1))
-    def save(self, filename, dpi=None, *args, **kwargs):
+    def save(self, filename, dpi=600, *args, **kwargs):
         """Save the Canvas to a png or pdf file.
 
-        The filename is specified by the string `filename`.
-        Optionally, when `filename` ends in .png, the `dpi` argument
-        may specify the dots per inch (dpi) of the output .png file,
-        where larger numbers indicate a higher resolution and larger
-        file size.  Any additional arguments or keyword arguments are
-        passed to the "savefig" function in matplotlib.
+        The filename is specified by the string `filename`.  Optionally, the
+        `dpi` argument may specify the dots per inch (dpi) of the output .png
+        file, where larger numbers indicate a higher resolution and larger file
+        size.  This is most relevant to .png output, but is also used when
+        individual axes are rasterized through ax.set_rasterized().  Any
+        additional arguments or keyword arguments are passed to the "savefig"
+        function in matplotlib.
+
         """
         filetypes = ['png', 'pdf']
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
-        assert (dpi is None) or filename.endswith(".png"), "DPI argument only supported for png files"
         self.fix_fonts()
         matplotlib.rc('pdf', fonttype=42) # This embeds (rather than subsets) all fonts in PDFs.
         # Lazy importing of matplotlib backend.  See https://matplotlib.org/3.3.1/tutorials/introductory/usage.html#the-builtin-backends
@@ -861,11 +866,8 @@ class Canvas:
             xpos = i*spacing.width() + origin
             if self.convert_to_figure_coord(xpos).x >= 0:
                 self.add_line(xpos >> bottom_left, xpos >> top_right, **args)
-                print("1")
             else:
-                print("2")
                 break
-            print(i, xpos)
             i -= 1
         i = 0
         while True:
@@ -880,11 +882,8 @@ class Canvas:
             ypos = i*spacing.height() + origin
             if self.convert_to_figure_coord(ypos).y >= 0:
                 self.add_line(bottom_left >> ypos, top_right >> ypos, **args)
-                print("1")
             else:
-                print("2")
                 break
-            print(i, xpos)
             i -= 1
         i = 0
         while True:
@@ -973,6 +972,10 @@ class Canvas:
         with the exception of "filename", which is of course not
         available here.
         """
+        # Set a low resolution by default so plots aren't too big for the
+        # screen
+        if "dpi" not in kwargs.keys():
+            kwargs['dpi'] = 100
         # Test if we are in a Jupyter notebook or in the IPython
         # interpreter.
         in_jupyter = True
