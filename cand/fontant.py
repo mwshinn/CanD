@@ -410,7 +410,10 @@ def get_base_style(font):
     return base_style
 
 def loadttf(path):
-    font = ft2font.FT2Font(path)
+    try:
+        font = ft2font.FT2Font(path)
+    except RuntimeError:
+        return None
     props = {
         "fname": font.fname,
         "full_name": get_fullname(font),
@@ -446,10 +449,17 @@ def find_font(name, *, weight=None, style=None, stretch=None, opticalsize=None, 
     # Check if they passed a filename for the name.  If so, return that.
     if name is not None and os.path.isfile(name):
         loadedttf = loadttf(name)
-        _find_font_cache[cachename] = loadedttf
-        return loadedttf
-    # If not, firs, find all fonts which contain the specified name as a substring.
-    fonts = [loadttf(p) for p in get_fonts()]
+        if loadedttf is None:
+            print(f"Warning: font path {name} could not be loaded, trying a more thorough search")
+        else:
+            _find_font_cache[cachename] = loadedttf
+            return loadedttf
+    # If not, firs, find all fonts which contain the specified name as a
+    # substring.  This first expression uses the "for lf in [...]" hack like a
+    # "let" statement in lisp so that we can still use list comprehensions and
+    # filter for None without running the loadttf function twice.  (I think
+    # there might be special syntax for this in newer versions of Python?)
+    fonts = [lf for p in get_fonts() for lf in [loadttf(p)] if lf is not None]
     fonts = [f for f in fonts if name.lower() in f["full_name"].lower() or
                                  name.lower() in f["family_name"].lower() or
                                  name.lower() in f["postscript_name"].lower()]
@@ -507,7 +517,7 @@ def find_font(name, *, weight=None, style=None, stretch=None, opticalsize=None, 
                 differing_props.append((prop, allprops))
         if len(differing_props) > 0:
             errortext = "Multiple matching fonts, please specify one or more of the following:\n"
-            errortext += "\n".join([f"    {prop} = {sorted(vals)}"
+            errortext += "\n".join([f"    '{prop}' is one of: {sorted(vals)}"
                                     for prop,vals in differing_props])
             raise MultipleFontsFoundError(errortext)
         else:
