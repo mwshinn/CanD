@@ -44,7 +44,8 @@ class Point:
             obj.coordinate = coordinate
             return obj
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.x}, {self.y}, "{self.coordinate}")'
+        nondefault = f', "{self.coordinate}"' if self.coordinate != "default" else ""
+        return f'{self.__class__.__name__}({self.x}, {self.y}{nondefault})'
     @pns.accepts(pns.Self, Metric)
     def __add__(self, other):
         """Add together a point and a vector.
@@ -157,7 +158,8 @@ class Vector:
             obj.coordinate = coordinate
             return obj
     def __repr__(self):
-        return f'{self.__class__.__name__}({self.x}, {self.y}, "{self.coordinate}")'
+        nondefault = f', "{self.coordinate}"' if self.coordinate != "default" else ""
+        return f'{self.__class__.__name__}({self.x}, {self.y}{nondefault})'
     @pns.accepts(pns.Self, Metric)
     def __add__(self, other):
         """Add a vector to a Point or another Vector.
