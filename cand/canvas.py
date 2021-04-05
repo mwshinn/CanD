@@ -397,6 +397,7 @@ class Canvas:
     @pns.returns(Metric)
     @pns.ensures("return.coordinate == 'figure'")
     def convert_to_figure_coord(self, point):
+        """Converts units in a Point or Vector to "figure"."""
         if isinstance(point, Vector):
             return self.convert_to_figure_length(point)
         p = self.convert_to_absolute_coord(point)
@@ -405,6 +406,7 @@ class Canvas:
     @pns.returns(Vector)
     @pns.ensures("return.coordinate == 'figure'")
     def convert_to_figure_length(self, vec):
+        """Converts units in a Vector to "figure"."""
         v = self.convert_to_absolute_length(vec)
         return Vector(v.x / self.size[0], v.y / self.size[1], "figure")
     @pns.accepts(pns.Self, pns.List(Point))
@@ -856,7 +858,16 @@ class Canvas:
             pdf.setMetadata(pdf.metadata)
             pdf.save(pdf.name, deflate=True, incremental=True)
             pdf.close()
+    @pns.accepts(pns.Self, Vector, Point)
     def debug_grid(self, spacing, origin=Point(0, 0, "absolute"), **kwargs):
+        """Create a grid to help you design a layout.
+
+        This function is intended to help in the process of designing a layout,
+        rather than as a feature of a finished figure.  It draws a grid over
+        the top of the canvas at spacing defined by the Vector `spacing`.
+        Optionally, it begins this grid at the Point `origin`.
+
+        """
         bottom_left = Point(0, 0, "figure")
         top_right = Point(1, 1, "figure")
         args = {"zorder": 100, "alpha": .2, "c": "k"}
