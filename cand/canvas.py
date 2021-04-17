@@ -340,6 +340,10 @@ class Canvas:
         if point.coordinate == "-absolute":
             return Point(self.size[0]-point.x, self.size[1]-point.y, "absolute")
         if point.coordinate in self.axes.keys():
+            # The call to autoscale_view fix the problem that automatic data
+            # limits are updated lazily, and thus, gives an outdated transData
+            # matrix until a display function is called.
+            self.axes[point.coordinate].autoscale_view()
             tf_data = self.axes[point.coordinate].transData
             tf_fig = self.trans_absolute.inverted()
             x,y = tf_fig.transform(tf_data.transform((point.x, point.y)))
@@ -485,7 +489,7 @@ class Canvas:
         e = matplotlib.patches.Ellipse(xy=tuple(center), width=diff.width().x, height=diff.height().y,
                                        transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(e)
-    def add_arrow(self, frm, to, arrowstyle="->,head_width=4,head_length=8", lw=2, linestyle='solid', **kwargs):
+    def add_arrow(self, frm, to, arrowstyle="->,head_width=3,head_length=4", lw=2, linestyle='solid', **kwargs):
         """Draw an arrow.
 
         Draw an arrow from Point `frm` to Point `to`.  All other
@@ -506,7 +510,7 @@ class Canvas:
         arrow = matplotlib.patches.FancyArrowPatch(tuple(pt_frm), tuple(pt_to), transform=self.trans_absolute,
                                                        arrowstyle=arrowstyle, lw=lw, linestyle=linestyle, **kwargs)
         self.figure.patches.append(arrow)
-    def add_text(self, text, pos, fontname=None, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, **kwargs):
+    def add_text(self, text, pos, font=None, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, **kwargs):
         """Add text at a given point.
 
         Draw the text `text` at Point `pos`.  The argument `weight`
@@ -528,10 +532,12 @@ class Canvas:
             kwargs['horizontalalignment'] = kwargs['ha'] if 'ha' in kwargs else 'center'
         if 'verticalalignment' not in kwargs:
             kwargs['verticalalignment'] = kwargs['va'] if 'va' in kwargs else 'center'
+        if 'fontname' in kwargs.keys() and font is None:
+            font = kwargs['fontname']
         pt = self.convert_to_absolute_coord(pos)
         # Check valid font names with matplotlib.font_manager.FontManager().findfont(name)
         #self.figure.text(pt.x, pt.y, text, transform=self.figure.transFigure, fontdict={'fontname': "Helvetica Neue LT Std", "fontsize": 20})
-        fprops = self._get_font(name=fontname, weight=weight, size=size,
+        fprops = self._get_font(name=font, weight=weight, size=size,
                                 stretch=stretch, style=style, foundry=foundry, special=special,
                                 opticalsize=opticalsize, monospace=monospace)
         self.figure.text(pt.x, pt.y, text, transform=self.trans_absolute,

@@ -644,7 +644,10 @@ def find_font_family(name, *, stretch=None, opticalsize=None, monospace=None, fo
         _find_font_family_cache[cachename] = matchingfonts[0]
         return matchingfonts[0]
     styles = {}
-    styles['regular'] = find_member(allfonts, bold=False, italic=False)
+    try:
+        styles['regular'] = find_member(allfonts, bold=False, italic=False)
+    except:
+        print("Warning, regular font not found")
     try:
         styles['italic'] = find_member(allfonts, bold=False, italic=True)
     except:
