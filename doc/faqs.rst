@@ -54,3 +54,11 @@ choice of a function argument was incorrect.
 If you have already confirmed that you are using the correct arguments but
 continue to receive the error, please open a `bug report
 <https://github.com/mwshinn/cand/issues>`_.
+
+Why don't the minus signs in my axis label work in my favorite font?
+--------------------------------------------------------------------
+
+Matplotlib uses the Unicode minus sign by default for negative values, which not
+all fonts support.  `See the matplotlib documentation to disable this
+<https://matplotlib.org/stable/gallery/text_labels_and_annotations/unicode_minus.html>`_.
+
