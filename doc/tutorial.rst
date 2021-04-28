@@ -125,6 +125,13 @@ we can do::
 These new units can be used like existing units, e.g., ``Vector(1.5, 2.5,
 "in_cm")``.
 
+You can also move the origin.  Here is a coordinate system where the center of
+the canvas is 0, the upper right corner is (1,1), and the lower left corner is
+(-1,-1).
+
+    c.add_unit("center", Vector(.5, .5, "figure"), origin=Point(.5, .5, "figure"))
+
+
 Vector/Point arithmetic
 ---------------------------
 
@@ -431,8 +438,8 @@ Note that these are not intended replace normal matplotlib plotting functions.
 When plotting on axes, it is usually more convenient to use the standard
 matplotlib "plot" and "scatter" functions.
 
-Polygons
-........
+Geometric shapes
+................
 
 Rectangles can be specified using the :meth:`.Canvas.add_rect` function by
 providing two Points as corners, the lower left and the upper right.  All subsequent
@@ -454,6 +461,12 @@ corners.  All subsequent arguments are passed to
 `matplotlib.patches.FancyBboxPatch
 <https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.FancyBboxPatch.html#matplotlib.patches.FancyBboxPatch>`_.
 
+We can draw circles and ellipses as well with :meth:`.Canvas.add_ellipse`.  We
+specify them using the lower left and upper right point, which serves as their
+bounding box.  Additional arguments are identical to those for
+`matplotlib.patches.Ellipse
+<https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.Ellipse.html>`_.
+
 For example::
 
     c = Canvas(4,3,"in")
@@ -461,19 +474,96 @@ For example::
     c.add_box(Point(.2, .2, "in"), Point(3.8, .4, "in"), color='k', boxstyle='round')
     c.add_box(Point(.5, 1.8, "in"), Point(1.5, 2.2, "in"), boxstyle="rarrow", fill=True, color=(.3, .7, .1))
     c.add_poly([Point(3.1, 2.1, "in"), Point(3.3, 2.8, "in"), Point(2.9, 2.7, "in")], color='k')
+    c.add_ellipse(Point(2.1, 2.1, "in"), Point(2.3, 2.3, "in"), color='r')
+    c.add_ellipse(Point(2.5, 1.2, "in"), Point(3.8, 1.5, "in"), fill=False, linestyle='--', edgecolor='g')
 
 Arrows
 ......
 
-add_arrow
+Arrows can be added just like lines.  The arrow goes "from" the first argument
+and "to" the second argument, which are both Points.  Subsequent arguments are
+identical to those passed to `matplotlib.patches.FancyArrowPatch
+<https://matplotlib.org/stable/api/_as_gen/matplotlib.patches.FancyArrowPatch.html>`_.
+Since FancyArrowPatch does not provide the most intuitive syntax, a few examples
+are given below::
 
-Other
-.....
+    c = Canvas(2.5, 4.5, "in")
+    h = 4.0
+    c.add_text("Default", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"))
+    h = 3.5
+    c.add_text("Bar arrow", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"),
+        arrowstyle="|-|,widthA=4,widthB=4", shrinkA=0, shrinkB=0)
+    h = 3.0
+    c.add_text("Filled head", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"),
+        arrowstyle="-|>,head_width=6,head_length=6", lw=4, capstyle="butt")
+    h = 2.5
+    c.add_text("Angled", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h-.10, "in"), Point(2, h+.10, "in"),
+        connectionstyle="angle,angleA=90,angleB=0")
+    h = 2.0
+    c.add_text("Curved", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h-.10, "in"), Point(2, h+.10, "in"),
+        connectionstyle="arc3,rad=.1")
+    h = 1.5
+    c.add_text("Wedge", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"),
+        arrowstyle="wedge,tail_width=10")
+    h = 1.0
+    c.add_text("Simple", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"),
+        arrowstyle="simple,head_width=16,tail_width=6,head_length=10")
+    h = 0.5
+    c.add_text("Fancy", Point(.5, h, "in"))
+    c.add_arrow(Point(1, h, "in"), Point(2, h, "in"),
+        arrowstyle="fancy,head_width=10,tail_width=8,head_length=6", color="green")
 
-add_ellipse,
+Note that, for compatibility with matplotlib, we respect the "shrinkA" and
+"shrinkB" arguments, which means the arrow will not connect directly to the
+points you provide.  Setting "shinkA=0" and "shrinkB=0" will ensure arrows are
+connected to the specified Points.
 
 Images
 ------
+
+Images in .png or .pdf format can be positioned in the plot just like any other
+plot element using the :meth:`.Canvas.add_image` method.  The first argument is
+the filename, specified in either relative or absolute path.  The second
+argument is the position, specified as a Point.  The relationship to the
+position is specified by further arguments.  Unlike other plot elements, images
+are not given by their lower left and upper right coordinates.  This is because,
+in general, we would probably like to maintain the image's aspect ratio.  Thus,
+we can specify an alignment with respect to the position
+(``horizontalalignment`` or ``ha`` for short, or ``verticalalignment``, ``va``
+for short) coupled with either a `height` or `width` argument.  The horizontal
+alignment can be ``left``, ``center``, or ``right``.  The vertical alignment can
+be ``top``, ``center``, or ``bottom``.  The ``height`` and ``width`` should be
+Vectors with 0 in the x or y dimension, respectively.  Transparency is handled
+automatically.
+
+It is also possible to define both the height and the width of the image.  This
+causes the image to be rescaled to match the specified dimensions.
+
+Often, it can be useful to treat the image as a unit of measure, with (0,0) at
+the lower left corner and (1,1) at the upper right corner.  The optional
+argument ``unitname`` can be used to define a unit based on this image.
+
+For example::
+
+    from urllib.request import urlretrieve
+    urlretrieve("https://raw.githubusercontent.com/mwshinn/CanD/master/cand-logo.png", "_logo.png")
+    c = Canvas(20, 8, "cm")
+    c.add_image("_logo.png", Point(1, 1, "cm"), ha="left", va="bottom", width=Vector(3, 0, "cm"))
+    c.add_image("_logo.png", Point(9, 4, "cm"), ha="center", va="center", height=Vector(0, 6, "cm"), unitname="middleimg")
+    c.add_image("_logo.png", Point(16, 4, "cm"), ha="left", va="center", width=Vector(2, 0, "cm"), height=Vector(0, 7, "cm"))
+    c.add_rect(Point(-.05, -.05, "middleimg"), Point(1.05, 1.10, "middleimg"), fill=None, linewidth=3)
+    c.add_text("Middle image", Point(.5, 1.05, "middleimg"), weight="bold", size=12)
+
+Note that, unlike other plot elements, images are always on top.  So it is not
+possible to overlay other plot elements on top of images.
+
 
 Plot elements
 -------------
@@ -483,6 +573,66 @@ add_legend, add_colorbar, add_figure_labels
 Grids of axes
 -------------
 
+Often, it is useful to align axes into a grid formation.  This is provided for
+convenience by the CanD method :meth:`.Canvas.add_grid`.  CanD's functionality
+is distinct from that offered by matplotlib, and operates slightly differently.
+The first argument is a list of names of axes to be included in the grid.  The
+second argument specifies the number of rows in the grid.  (The number of
+columns will be auto-detected.)  The third and fourth arguments specify the
+lower left and upper right corners of the entire grid.  The remaining
+argument(s) specify the spacing between axes.  This can be specified using the
+``size`` argument, a single Vector which specified the size of the elements in
+the grid.  Alternatively, the ``spacing`` argument is a Vector specifying how
+much space to leave between axes for both the x and y dimensions.  It is also
+possible to mix these two styles: the ``size_x`` argument can be used with the
+``spacing_y`` argument, and the ``spacing_x`` argument with the ``size_y``
+argument.  Arguments with the ``_x`` suffix take a Vector with 0 in the y
+component, and those with a ``_y`` suffix take a Vector with 0 in the x
+component.  Thus, for specifying the size of the elements in the grid, the
+following argument(s) are possible:
+
+- ``spacing`` (a Vector)
+- ``size`` (A Vector)
+- ``spacing_x`` (A Vector with 0 in the y direction) and ``size_y`` (A Vector with 0 in the x direction)
+- ``spacing_y`` (A Vector with 0 in the x direction) and ``size_x`` (A Vector with 0 in the y direction)
+
+If ``None`` is specified as the name of an axis, a blank space will be drawn
+instead of the axis.
+
+The following example illustrates these concepts::
+
+    c = Canvas(10, 10, "cm")
+    c.add_grid(["a", "b", "c"], 1, Point(1, 7, "cm"), Point(9, 9, "cm"), spacing=Vector(1, 0, "cm"))
+    c.add_grid(["d", "e", "f", "g", None, "h", "i", "j"], 3, Point(1, 1, "cm"), Point(5, 6, "cm"), size=Vector(.8, .8, "cm"))
+    c.add_grid(["k", "l", "m", "n"], 2, Point(6, 1, "cm"), Point(9, 6, "cm"), size_x=Vector(1, 0, "cm"), spacing_y=Vector(0, 1, "cm"))
+    for letter in "abcdefghijklmn":
+        c.add_text(letter, Point(.5, .5, "axis_"+letter), weight="bold")
+
+Often, it can be useful to refer to a grid as a single object.  For example, you
+may want to insert text centered on the entire grid, or a legend a certain
+distance to the right of the grid.  The optional argument ``unitname`` can be
+used to define a unit based on this grid, where the origin (0,0) is the bottom
+left corner of the bottom left axis in the grid, and (1,1) is the upper right
+corner of the upper right axis in the grid.
+
+While CanD does not have a function to directly specify sub-grids, these are
+easy to implement using the :meth:`.Canvas.add_grid` method through the use of a
+dummy axis.  For example::
+
+    c = Canvas(10, 10, "cm")
+    c.add_grid(["a", "b", "c", "dummy"], 2, Point(1, 1, "cm"), Point(9, 9, "cm"), size=Vector(3.5, 3.5, "cm"), unitname="grid")
+    c.ax("dummy").axis("off")
+    c.add_grid(["d", "e", "f", "g"], 2, Point(0, 0, "axis_dummy"), Point(1, 1, "axis_dummy"), size=Vector(1.25, 1.25, "cm"))
+    c.add_text("Our grid", Point(.5, 1.0, "grid")+Vector(0, .5, "cm"), size=10, weight="bold")
+
+
 Saving
 ------
 
+To save, call the :meth:`.Canvas.save` method.  The only mandatory argument is
+the filename.  Both png and pdf outputs are supported, which will be
+auto-detected from the filename.  The optional ``dpi`` argument determines the
+resolution of the output image, i.e., how many pixels per inch.  It is most
+useful for png files, but also for pdf files where axes have been rasterized.
+All further arguments are passed to the matplotlib function `savefig
+<https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.savefig.html>`_.

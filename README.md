@@ -46,8 +46,10 @@ CanD does **not** provide:
   right choice for you. CanD will, however, make it easy to
   implement a layout you have in your mind.
 
-CanD is currently pre-alpha software.  Examples and documentation
-will be available eventually.
+CanD is currently pre-alpha software.  Examples and documentation will be
+available eventually.  [Draft documentation on
+readthedocs](https://cand.readthedocs.io/en/latest/tutorial.html) is currently
+available.
 
 Example
 =======

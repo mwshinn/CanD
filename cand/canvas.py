@@ -426,7 +426,6 @@ class Canvas:
         for i,p in enumerate(points):
             pt = self.convert_to_absolute_coord(p)
             np_points[i] = [pt.x, pt.y]
-        print(np_points)
         if "fill" not in kwargs.keys():
             kwargs['fill'] = False
         poly = matplotlib.patches.Polygon(np_points, transform=self.trans_absolute, **kwargs)
