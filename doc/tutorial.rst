@@ -82,6 +82,12 @@ which may be used to position elements on that canvas.  These include:
   direction.
 - "-figure": Indentical to "figure", except with the origin in the upper
   right corner.
+- "fontsize": The default font size, e.g. if you have 8pt font, 2 units is 16pt.
+  See below for how to change the font size.  Note that this is computed by
+  converting the size in points to the size on the figure.  Thus, you cannot
+  rely on this being exactly the same distance as a given font, because
+  different fonts use different design choices.  Nevertheless, it should be
+  close.
 - "default" (or none): The default unit.  This is set to "absolute" when the
   canvas is created, but this can be changed.  For example, ``Point(1, 2,
   "default")`` and ``Point(1, 2)`` are equivalent.
@@ -133,7 +139,7 @@ the canvas is 0, the upper right corner is (1,1), and the lower left corner is
 
 
 Vector/Point arithmetic
----------------------------
+-----------------------
 
 It is possible to perform arithmetic on vectors, similar to the way we perform
 vector operations in linear algebra.  Two vectors can be added and subtracted,
@@ -568,7 +574,46 @@ possible to overlay other plot elements on top of images.
 Plot elements
 -------------
 
-add_legend, add_colorbar, add_figure_labels
+CanD implements its own helper functions for several plot features.  Some of
+these are reimplemented from matplotlib features.  It is still possible to use
+the original matplotlib versions, but in many cases, the versions implemented by
+CanD will be simpler.
+
+To add a legend, use the :meth:`.Canvas.add_legend` function.  The first
+argument ``pos_tl`` is the position of the top left corner, and the second
+argument ``els`` is a list with a specific format to describe the content of the
+legend.  Each element of the list should be a tuple, where the first element is
+the title, and the second element is a dictionary to describe the style.  The
+elements of this dictionary should correspond to those passed to the
+:meth:`.Canvas.add_line` or :meth:`.Canvas.add_marker` functions.  To use a
+marker instead of a line, set linestyle to the string "None".  You can
+optionally pass additional arguments to control the spacing of the different
+aspects of the legend.  `line_spacing` determines spacing between each line of
+descriptive text in the legend.  `sym_width` is the width of the symbols (lines
+and markers). `padding_sep` is the separation between the symbols and the
+descriptive text.
+
+To add a colorbar, use :meth:`.Canvas.add_colorbar`.  The first argument is the
+name of the colorbar.  This should be unique, and should not coincide with the
+name of an axis, because this will be usable as a unit.  The following two
+arguments are the bottom left and upper right corners of the colorbar.  The next
+argument is a tuple containing the minimum and maximum value of the colorbar.
+This colorbar function does not automatically map to a matplotlib axis, so the
+axis limits (vmin and vmax) will have to be manually specified in both cases.
+All remaining optional arguments are identical to those of matplotlib's
+`ColorbarBase
+<https://matplotlib.org/stable/api/colorbar_api.html#matplotlib.colorbar.ColorbarBase>`_,
+notably, ``cmap``, which takes the name of a colormap to use for the colorbar.
+Orientation is determined automatically.
+
+Additionally, labels can be added in a consistent manner with
+:meth:`.Canvas.add_figure_labels`.  The first argument is a list of tuples
+describing the labels to add.  The first element of each tuple is the text to
+use for the label, such as "a", "b", etc.  The second element of each tuple is
+the name of the axis to which to add the label.  The third element of the tuple
+is optional, and specifies an offset in the position.  Following the argument,
+:meth:`.Canvas.add_figure_labels` function also takes an optional second
+argument specifying the font size of the labels.
 
 Grids of axes
 -------------

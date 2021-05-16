@@ -16,6 +16,7 @@ problems to the `bug tracker <https://github.com/mwshinn/cand/issues>`_.
 
    installing
    tutorial
+   gallery/index
    apidoc/index
    faqs
    contact

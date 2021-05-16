@@ -339,6 +339,8 @@ class Canvas:
             return Point(point.x*self.size[0], point.y*self.size[1], "absolute")
         if point.coordinate == "-absolute":
             return Point(self.size[0]-point.x, self.size[1]-point.y, "absolute")
+        if point.coordinate in ["Msize", "fontsize"]: # Msize for backward compatibility
+            return self.convert_to_absolute_coord(Point(point.x*self.fontsize, point.y*self.fontsize, "point"))
         if point.coordinate in self.axes.keys():
             # The call to autoscale_view fix the problem that automatic data
             # limits are updated lazily, and thus, gives an outdated transData
@@ -588,9 +590,6 @@ class Canvas:
         assert len(els) >= 1
         # Get the text height
         fprops = self._get_font()
-        t = matplotlib.textpath.TextPath((0,0), "M", size=fontsize, prop=fprops)
-        if self.is_valid_identifier("Msize"):
-            self.add_unit("Msize", Vector(self.fontsize, self.fontsize, "point"))
         # All params are in units of M width or height
         padding_top = Height(0, "Msize") # Space on top of figure
         padding_left = Width(0, "Msize") # Space on left of lines
