@@ -6,7 +6,8 @@
 
 from setuptools import setup
 
-from cand._version import __version__
+with open("cand/_version.py") as f:
+    exec(f.read())
 
 with open("README.md", "r") as f:
     long_desc = f.read()
