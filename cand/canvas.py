@@ -45,6 +45,7 @@ class Canvas:
         self.default_unit = "figure"
         self.fontsize = 8
         self.fontsize_ticks = 8
+        self.fontsize_title = 8
         self.images = []
         self.tmpfiles = []
         self.font = dict(name="DejaVu Sans", stretch="normal")
@@ -96,18 +97,19 @@ class Canvas:
     def _cleanup(self):
         for f in self.tmpfiles:
             os.remove(f)
-    def set_font(self, name, *, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, ticksize=None):
+    def set_font(self, name, *, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, ticksize=None, titlesize=None):
         if size:
             # Set up font sizes
             self.localRc['font.size'] = size
-            self.localRc['axes.titlesize'] = size
+            self.localRc['axes.titlesize'] = titlesize or size
             self.localRc['axes.labelsize'] = size
             self.localRc['xtick.labelsize'] = ticksize or size
             self.localRc['ytick.labelsize'] = ticksize or size
             self.localRc['legend.fontsize'] = size
-            self.localRc['figure.titlesize'] = size
+            self.localRc['figure.titlesize'] = titlesize or size
             self.fontsize = size
             self.fontsize_ticks = ticksize or size
+            self.fontsize_title = titlesize or size
         newfont = {}
         newfont['name'] = name
         if weight is not None:
@@ -662,6 +664,7 @@ class Canvas:
         except (MultipleFontsFoundError, NoFontFoundError):
             fprops_it = fprops
         fprops_ticks = self._get_font(size=self.fontsize_ticks)
+        fprops_title = self._get_font(size=self.fontsize_title)
         for ax in self.figure.axes:
             for label in ax.get_xticklabels():
                 label.set_fontproperties(fprops_ticks)
@@ -669,7 +672,7 @@ class Canvas:
                 label.set_fontproperties(fprops_ticks)
             ax.set_xlabel(ax.get_xlabel(), fontproperties=fprops)
             ax.set_ylabel(ax.get_ylabel(), fontproperties=fprops)
-            ax.set_title(ax.get_title(), fontproperties=fprops)
+            ax.set_title(ax.get_title(), fontproperties=fprops_title)
             if ax.legend_:
                 for t in ax.legend_.texts:
                     t.set_fontproperties(fprops)
