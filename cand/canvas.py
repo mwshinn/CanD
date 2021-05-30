@@ -1004,6 +1004,9 @@ class Canvas:
         # Save a temporary image file with the plot
         tmp = tempfile.mkstemp('.png')[1]
         self.tmpfiles.append(tmp)
+        # Force a white background in jupyter
+        if in_jupyter and 'transparent' not in kwargs.keys():
+            kwargs['transparent'] = False
         self.save(tmp, **kwargs)
         # Display, either in a new window, or in Jupyter
         if in_jupyter:
