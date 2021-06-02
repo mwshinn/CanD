@@ -44,8 +44,7 @@ possible units we can use, including:
 Once we have created the canvas, we can view it using any of the following three
 commands::
 
-    c.show() # Show a new window containing the canvas
-    c.show_jupyter() # Display the canvas inline in a jupyter notebook
+    c.show() # Show a new window containing the canvas, or show inline if in Jupyter
     c.save("output.png") # Save the canvas to the file "output.png"
     c.save("output.pdf") # Save the canvas to the file "output.pdf"
 
