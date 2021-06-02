@@ -26,7 +26,7 @@ setup(
     python_requires='>=3.5',
     maintainer_email = 'm.shinn@ucl.ac.uk',
     packages = ['cand'],
-    install_requires = ['numpy', 'scipy', 'matplotlib', 'paranoid-scientist >= 0.2.1', 'PyMuPDF', 'Pillow'],
+    install_requires = ['numpy', 'scipy', 'matplotlib', 'paranoid-scientist >= 0.2.1', 'PyMuPDF >= 1.16.0', 'Pillow'],
     classifiers = [
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
