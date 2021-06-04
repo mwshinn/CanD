@@ -807,8 +807,7 @@ class Canvas:
             mplcanvas = FigureCanvasPgf(self.figure)
             matplotlib.rc('pgf', texsystem=self.latex_engine)
             if self.latex_preamble is not None:
-                preamble = matplotlib.rcParams.setdefault('pgf.preamble', "")
-                preamble += self.latex_preamble
+                self.localRc['pgf.preamble'] = matplotlib.rcParams['pgf.preamble'] + self.latex_preamble
         elif self.backend == "default":
             from matplotlib.backends.backend_agg import FigureCanvasAgg
             mplcanvas = FigureCanvasAgg(self.figure)
