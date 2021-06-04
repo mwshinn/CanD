@@ -797,6 +797,9 @@ class Canvas:
         filetypes = ['png', 'pdf']
         filetype = next(ft for ft in filetypes if filename.endswith("."+ft))
         self.fix_fonts()
+        # Force a white background in jupyter, which makes it transparent
+        if self._in_jupyter():
+            self.figure.patch.set_alpha(1)
         matplotlib.rc('pdf', fonttype=42) # This embeds (rather than subsets) all fonts in PDFs.
         # Lazy importing of matplotlib backend.  See https://matplotlib.org/3.3.1/tutorials/introductory/usage.html#the-builtin-backends
         if self.backend == "latex":
@@ -983,6 +986,14 @@ class Canvas:
         if unitname is not None:
             assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
             self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
+    def _in_jupyter(self):
+        """Test if we are in a Jupyter notebook or in the IPython interpreter."""
+        try:
+            get_ipython
+        except NameError:
+            return False
+        return True
+
     def show(self, **kwargs):
         """Display the Canvas in a new window (non-blocking) or in Jupyter.
 
@@ -994,22 +1005,12 @@ class Canvas:
         # screen
         if "dpi" not in kwargs.keys():
             kwargs['dpi'] = 100
-        # Test if we are in a Jupyter notebook or in the IPython
-        # interpreter.
-        in_jupyter = True
-        try:
-            get_ipython
-        except NameError:
-            in_jupyter = False
         # Save a temporary image file with the plot
         tmp = tempfile.mkstemp('.png')[1]
         self.tmpfiles.append(tmp)
-        # Force a white background in jupyter
-        if in_jupyter and 'transparent' not in kwargs.keys():
-            kwargs['transparent'] = False
         self.save(tmp, **kwargs)
         # Display, either in a new window, or in Jupyter
-        if in_jupyter:
+        if self._in_jupyter():
             IPython_display(IPython_Image(filename=tmp))
         else:
             Image.open(tmp).show()
