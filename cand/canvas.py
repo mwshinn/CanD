@@ -688,14 +688,7 @@ class Canvas:
         # Workaround for a bug in matplotlib where there are no
         # negative signs in front of axis labels in latex mode
         if self.backend == "latex":
-            for ax in self.figure.axes:
-                labels = ax.get_yticklabels()
-                ticks = ax.get_yticks()
-                for i in range(0, len(labels)):
-                    if labels[i].get_text().strip() == "":
-                        l = "%g" % ticks[i]
-                        labels[i].set_text(l)
-                ax.set_yticklabels(labels)
+            self.localRc['axes.unicode_minus'] = False
     def _grid_space(self, frm, to, spacing, count):
         dist = to-frm
         figsize = (dist-(count-1)*spacing)/count
