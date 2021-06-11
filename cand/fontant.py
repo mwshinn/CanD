@@ -429,6 +429,7 @@ def loadttf(path):
         "identifier": get_identifier(font),
         "version": get_version(font),
         "special": get_special(font),
+        "num_faces": font.num_faces,
         "base_style": get_base_style(font), # 0 = regular, 1 = italic, 2 = bold, 3 = bolditalic
     }
     return props
@@ -660,6 +661,10 @@ def find_font_family(name, *, stretch=None, opticalsize=None, monospace=None, fo
         styles['bolditalic'] = find_member(allfonts, bold=True, italic=True)
     except:
         print("Warning, bold-italic font not found")
+    for style in styles:
+        if styles[style]['num_faces'] > 1:
+            print(f"Warning, font is a .ttc file with {styles[style]['num_faces']} embedded faces.  CanD can only use one.  If you have problems, try using a ttf or otf font instead.")
+            break
     _find_font_family_cache[cachename] = styles
     return styles
 

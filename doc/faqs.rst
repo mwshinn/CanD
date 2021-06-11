@@ -62,3 +62,30 @@ Matplotlib uses the Unicode minus sign by default for negative values, which not
 all fonts support.  `See the matplotlib documentation to disable this
 <https://matplotlib.org/stable/gallery/text_labels_and_annotations/unicode_minus.html>`_.
 
+
+Why can't CanD find the bold or italic version of my favorite font?
+-------------------------------------------------------------------
+
+Not all fonts are supported by matplotlib, and hence by CanD.  If your font is
+not a truetype or opentype font, matplotlib may still provide some support if
+you have an .afm file to go along with your font.  CanD drops this support.
+
+If your font *is* a truetype or opentype font, then you may want to double check
+that matplotlib is properly supporting your font!  Matplotlib automatically
+substitutes the "best match" font for the one you specified.  Thus, it may be
+replacing your desired font with a different font for the bold or italic text!
+
+For example, "ttc" (truetype collection) is a common format for Mac computers
+which encapsulates multiple fonts in one.  Matplotlib (and hence CanD) only
+support accessing the first font in the collection.  Matplotlib will
+automatically substitute other fonts for the subsequent fonts in the collection,
+but CanD will not.
+
+The lack of automatic substitution was an intentional design decision in CanD,
+just as automatic substitution was an intentional design decision in matplotlib.
+CanD's font system (fontant) is intended to make sure you have full control over
+how your figure is created.  It also prevents occasional mistakes in the
+automatic substitution.  For example, it is possible that running the same code
+twice in matplotlib will produce different outputs.  This happens if two fonts
+are equally good "best matches" to an unavailable font.  CanD is designed to
+avoid this behavior by throwing an error if the font is not available.
