@@ -516,17 +516,18 @@ class Canvas:
     def add_text(self, text, pos, font=None, size=None, weight=None, style=None, stretch=None, foundry=None, special=None, opticalsize=None, monospace=None, **kwargs):
         """Add text at a given point.
 
-        Draw the text `text` at Point `pos`.  The argument `weight`
-        specifies the font weight, which varies depending on the
-        weights of the font, but potential options may be "light",
-        "roma", "bold", "heavy", "black".  The size is given by `size`
-        in points, which defaults to the Canvas' default. The width is
-        given by "stretch", which can be "consensed", "normal", or
-        "wide", depending on the font.  All other keyword arguments
-        are passed to matplotlib.pyplot.text.  Notably, the
-        `horizontalalignment` and `verticalalignment` arguments are
-        often useful.  (`ha` and `va` are also accepted as aliases for
-        matplotlib compatibility).
+        Draw the text `text` at Point `pos`.  The argument `weight` specifies
+        the font weight, which varies depending on the weights of the font, but
+        potential options may be "light", "roma", "bold", "heavy", "black".
+        The size is given by `size` in points, which defaults to the Canvas'
+        default. The width is given by "stretch", which can be "consensed",
+        "normal", or "wide", depending on the font.  All other keyword
+        arguments are identical to those of matplotlib.pyplot.text.  Notably,
+        the `horizontalalignment` and `verticalalignment` arguments are often
+        useful.  (`ha` and `va` are also accepted as aliases for matplotlib
+        compatibility).  The `rotation` keyword may also be useful for rotated
+        text.
+
         """
         if size is None:
             size = self.fontsize
