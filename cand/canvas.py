@@ -858,7 +858,10 @@ class Canvas:
                     page.insertImage(rect, filename=image[0], keep_proportion=False)
             pdf.metadata['creator'] = f"{_idstr}; {pdf.metadata['creator']}"
             pdf.metadata['producer'] = f"{_idstr}; {pdf.metadata['producer']}"
-            pdf.set_metadata(pdf.metadata)
+            try:
+                pdf.setMetadata(pdf.metadata)
+            except AttributeError:
+                pdf.set_metadata(pdf.metadata)
             pdf.save(pdf.name, deflate=True, incremental=True, encryption=mupdf.PDF_ENCRYPT_KEEP)
             pdf.close()
     @pns.accepts(pns.Self, Vector, Point)
