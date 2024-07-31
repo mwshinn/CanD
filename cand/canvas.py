@@ -577,9 +577,10 @@ class Canvas:
         representing the elements to include in the legend.  The first
         element of each tuple should be the name of the legend item,
         the second element should be a dictionary of line properties
-        to be passed to the add_line and add_marker functions.  To
-        withhold drawing a line and only draw markers, set 'linestyle'
-        to the string 'None'.
+        to be passed to the add_line and add_marker functions, with an
+        optional dictionary element in the dictionary, text_params
+        passed to add_text. To withhold drawing a line and only draw
+        markers, set 'linestyle' to the string 'None'.
 
         Additional parameters control formatting.  `line_spacing`
         determines spacing between each line of descriptive text in
@@ -607,9 +608,10 @@ class Canvas:
             # Figure out the vertical position of this element of the legend
             y_offset = -1*line_spacing*i
             # Draw the text
+            params_text = els[i][1].pop('text_params', {})
             self.add_text(els[i][0],
                           top_left + sym_width + padding_sep + y_offset,
-                          horizontalalignment="left", size=fontsize)
+                          horizontalalignment="left", size=fontsize, **params_text)
             pt1 = top_left + y_offset
             pt2 = top_left + sym_width + y_offset
             # Draw the line
