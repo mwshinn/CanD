@@ -608,19 +608,20 @@ class Canvas:
             # Figure out the vertical position of this element of the legend
             y_offset = -1*line_spacing*i
             # Draw the text
-            params_text = els[i][1].pop('text_params', {})
+            params_dict = els[i][1].copy()
+            params_text = params_dict.pop('text_params', {})
             self.add_text(els[i][0],
                           top_left + sym_width + padding_sep + y_offset,
                           horizontalalignment="left", size=fontsize, **params_text)
             pt1 = top_left + y_offset
             pt2 = top_left + sym_width + y_offset
             # Draw the line
-            params_nomarker = els[i][1].copy()
+            params_nomarker = params_dict.copy()
             params_nomarker['markersize'] = 0
             self.add_line(pt1, pt2, **params_nomarker)
             # Draw the marker.  We need this in an if statement due to
             # a bug in matplotlib.
-            params_noline = els[i][1].copy()
+            params_noline = params_dict.copy()
             params_noline['linestyle'] = 'None'
             self.add_marker(pt1+(pt2-pt1)/2, **params_noline)
     @pns.accepts(pns.Self, pns.List(pns.Or(pns.Tuple(pns.String, pns.String),
