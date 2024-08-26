@@ -434,8 +434,8 @@ class Canvas:
             kwargs['fill'] = False
         poly = matplotlib.patches.Polygon(np_points, transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(poly)
-    @pns.accepts(pns.Self, Point, Point)
-    def add_rect(self, pos_ll, pos_ur, **kwargs):
+    @pns.accepts(pns.Self, Point, Point, pns.Maybe(pns.String))
+    def add_rect(self, pos_ll, pos_ur, unitname=None, **kwargs):
         """Draw a rectangle.
 
         The lower left corner is the Point `pos_ll` and the upper
@@ -449,8 +449,11 @@ class Canvas:
         # When drawing a box you have to duplicate the last point for
         # some reason... probably a bug in matplotlib
         self.add_poly([pt_ll, pt_ll+connect.height(), pt_ur, pt_ll+connect.width(), pt_ll, pt_ll], **kwargs)
-    @pns.accepts(pns.Self, Point, Point)
-    def add_box(self, pos_ll, pos_ur, **kwargs):
+        if unitname is not None:
+            assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
+            self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
+    @pns.accepts(pns.Self, Point, Point, pns.Maybe(pns.String))
+    def add_box(self, pos_ll, pos_ur, unitname=None, **kwargs):
         """Draw a bounding box.
 
         The lower left corner is the Point `pos_ll` and the upper
@@ -471,6 +474,9 @@ class Canvas:
             kwargs['mutation_scale'] = 1/2 # 1/2 inch mutation scale
         box = matplotlib.patches.FancyBboxPatch((pt_ll.x, pt_ll.y), diff.x, diff.y, transform=self.trans_absolute, **kwargs)
         self.figure.add_artist(box)
+        if unitname is not None:
+            assert self.is_valid_identifier(unitname), f"Invalid axis name {unitname!r}"
+            self.add_unit(unitname, (pos_ur-pos_ll), pos_ll)
     @pns.accepts(pns.Self, Point, Point)
     def add_ellipse(self, pos_ll, pos_ur, **kwargs):
         """Draw an ellipse.
