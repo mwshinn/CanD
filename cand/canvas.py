@@ -1,3 +1,4 @@
+
 import paranoid as pns
 import numpy as np
 import matplotlib
@@ -826,7 +827,10 @@ class Canvas:
                         page = pdf[0]
                         imgpath = tempfile.mkstemp('.png')[1]
                         zoom = int(np.ceil(dpi/72)) if dpi else 1
-                        page.getPixmap(alpha=True, matrix=mupdf.Matrix(zoom, zoom)).writeImage(imgpath)
+                        try:
+                            page.getPixmap(alpha=True, matrix=mupdf.Matrix(zoom, zoom)).writeImage(imgpath)
+                        except AttributeError:
+                            page.get_pixmap(alpha=True, matrix=mupdf.Matrix(zoom, zoom)).save(imgpath)
                     else:
                         imgpath = image[0]
                     with Image.open(imgpath) as subimg:
@@ -864,7 +868,10 @@ class Canvas:
                     toinsert = mupdf.open(image[0])
                     page.showPDFpage(rect, src=toinsert, keep_proportion=False)
                 else:
-                    page.insertImage(rect, filename=image[0], keep_proportion=False)
+                    try:
+                        page.insertImage(rect, filename=image[0], keep_proportion=False)
+                    except AttributeError:
+                        page.insert_image(rect, filename=image[0], keep_proportion=False)
             pdf.metadata['creator'] = f"{_idstr}; {pdf.metadata['creator']}"
             pdf.metadata['producer'] = f"{_idstr}; {pdf.metadata['producer']}"
             try:
