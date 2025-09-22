@@ -866,7 +866,10 @@ class Canvas:
                 #page.showPDFpage(rect, imagepdf)
                 if image[0].endswith(".pdf"):
                     toinsert = mupdf.open(image[0])
-                    page.showPDFpage(rect, src=toinsert, keep_proportion=False)
+                    try:
+                        page.showPDFpage(rect, src=toinsert, keep_proportion=False)
+                    except AttributeError:
+                        page.show_pdf_page(rect, toinsert, keep_proportion=False)
                 else:
                     try:
                         page.insertImage(rect, filename=image[0], keep_proportion=False)
