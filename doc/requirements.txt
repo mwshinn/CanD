@@ -1,0 +1,6 @@
+matplotlib >= 3.7.3
+numpy >= 1.9.2
+scipy >= 0.16.2
+paranoid-scientist >= 0.2.3
+PyMuPDF >= 1.16.0
+Pillow >= 11.0.0
